@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "erfa-kit": {
+      "source": { "source": "github", "repo": "erfajc97/claude-kit" }
+    }
+  },
+  "enabledPlugins": {
+    "kit@erfa-kit": true,
+    "kit-nestjs@erfa-kit": true,
+    "kit-astro@erfa-kit": true,
+    "kit-design@erfa-kit": true
+  }
+}

@@ -1,0 +1,19 @@
+---
+/** The global ledger (WA11): private, client-only behind the session gate. */
+import { PageSkeleton } from '../../app/components/PageSkeleton';
+import Ledger from '../../app/features/ledger/Ledger';
+import { getT, type Locale } from '../../app/i18n';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.ledgerTitle')} heading={t('ledger.pageTitle')} intro={t('ledger.intro')} locale={locale}>
+  <Ledger client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('ledger.loading')} />
+  </Ledger>
+</AdminLayout>

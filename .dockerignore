@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/coverage
+**/.astro
+**/.turbo
+**/.vitest
+.git
+.env
+.env.*
+!.env.example
+infra/terraform/.terraform
+playwright-report
+test-results

@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+@import '@heroui/styles';
+@import '@acme/ui/theme.css';
+@import '@acme/ui/fonts.css';
+
+@source '../../../../packages/ui/src';
+
+/*
+ * App shell sizes (WA9: a component's own size lives outside the theme namespaces). The floating
+ * tab bar on phones: 4rem tall plus its gap and the device's safe area; content and the store's
+ * cart bar keep clear of it.
+ */
+:root {
+  --bottom-nav-space: calc(5.25rem + env(safe-area-inset-bottom));
+  /* The public header (a 44 px row, its padding and the 1.6 px rule): the landing hero fills the rest. */
+  --public-header-height: calc(2.75rem + 1rem + 1.6px);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --public-header-height: calc(2.75rem + 1.5rem + 1.6px);
+  }
+}
+
+/* ClientRouter page swaps: a short fade (docs/brand.md › Motion, at most 250 ms). */
+::view-transition-old(root) {
+  animation: 120ms var(--ease-in) both fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 180ms var(--ease-out) both fade-in;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * TV and very large screens: the whole rem scale grows a step so type, controls and the content
+ * width read from a sofa instead of leaving a small island in the middle of the screen.
+ */
+@media (min-width: 1800px) and (min-height: 1000px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 2400px) and (min-height: 1300px) {
+  html {
+    font-size: 131.25%;
+  }
+}
+
+/*
+ * The product tour's spotlight: a cutout whose huge spread shadow is the dim, outlined in brand
+ * yellow over its target. It glides between steps (opacity only under reduced motion).
+ */
+@utility tour-spotlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--radius-card);
+  box-shadow: 0 0 0 200vmax var(--app-backdrop);
+  transition:
+    transform var(--transition-duration-normal) var(--ease-out),
+    width var(--transition-duration-normal) var(--ease-out),
+    height var(--transition-duration-normal) var(--ease-out);
+
+  &[data-target] {
+    outline: 3px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}

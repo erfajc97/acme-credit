@@ -1,0 +1,26 @@
+---
+/**
+ * The dashboard (WA11): private, client-only behind the session gate, skeleton fallback. Credi's
+ * walking strip lives here (the product tour lives in the shell).
+ */
+import WalkingMascot from '@acme/ui/WalkingMascot.astro';
+import { PageSkeleton } from '../../app/components/PageSkeleton';
+import Dashboard from '../../app/features/dashboard/Dashboard';
+import { getT, type Locale } from '../../app/i18n';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.dashboardTitle')} heading={t('dashboard.pageTitle')} intro={t('dashboard.intro')} locale={locale}>
+  <Dashboard client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('dashboard.loading')} variant="dashboard" />
+  </Dashboard>
+  <!-- Room under the last panel for Credi's walking strip (fixed, 4.5rem tall). -->
+  <div class="h-18" aria-hidden="true"></div>
+  <WalkingMascot class="bottom-0" />
+</AdminLayout>

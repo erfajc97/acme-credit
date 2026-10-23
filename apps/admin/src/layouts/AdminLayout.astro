@@ -1,0 +1,246 @@
+---
+/**
+ * The console shell (WA11): every page is private and noindex (BaseLayout). Desktop (lg): a left
+ * sidebar with the wordmark, the sections, the preferences (language, theme) and who is signed
+ * in. Below lg: a slim header (menu button, wordmark, language, theme) and the sections, the
+ * signed-in admin, the tour and sign-out in a drawer that slides in from the left (W9). The shell persists across ClientRouter navigations
+ * (transition:persist): it never remounts, so the session island keeps its state; a script
+ * re-marks the current section and re-points the language links on every page (WA4).
+ */
+import LocaleSwitch from '@acme/ui/LocaleSwitch.astro';
+import ThemeToggle from '@acme/ui/ThemeToggle.astro';
+import Wordmark from '@acme/ui/Wordmark.astro';
+import { BookOpenText, HandCoins, LayoutDashboard, Menu, ScrollText, ShoppingBag, Users, X } from 'lucide-react';
+import AdminNavLink from '../components/AdminNavLink.astro';
+import { Icon } from '../app/components/UI/Icon';
+import Session from '../app/features/session/Session';
+import Tour from '../app/features/tour/Tour';
+import { getT, type Locale } from '../app/i18n';
+import { localeSwitchLinks, localizePath, splitLocalePath } from '../app/i18n/routing';
+import { ROUTES } from '../app/lib/endpoints';
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  /** The static page heading (the island renders below it). */
+  heading: string;
+  intro?: string | undefined;
+  locale: Locale;
+}
+
+const { title, heading, intro, locale } = Astro.props;
+const t = getT(locale);
+const { path } = splitLocalePath(Astro.url.pathname);
+const isSection = (route: string) => path === route || path.startsWith(`${route}/`);
+const links = [
+  { route: ROUTES.dashboard, label: t('nav.dashboard'), icon: LayoutDashboard },
+  { route: ROUTES.accounts, label: t('nav.accounts'), icon: Users },
+  { route: ROUTES.purchases, label: t('nav.purchases'), icon: ShoppingBag },
+  { route: ROUTES.payouts, label: t('nav.payouts'), icon: HandCoins },
+  { route: ROUTES.ledger, label: t('nav.ledger'), icon: BookOpenText },
+  { route: ROUTES.auditLog, label: t('nav.auditLog'), icon: ScrollText },
+].map((link) => ({ ...link, href: localizePath(link.route, locale), isCurrent: isSection(link.route) }));
+const localeLinks = localeSwitchLinks(Astro.url.pathname).map((link) => ({
+  ...link,
+  name: link.lang === 'en-US' ? t('prefs.english') : t('prefs.spanish'),
+}));
+const themeLabels = {
+  label: t('prefs.theme'),
+  lightLabel: t('prefs.light'),
+  darkLabel: t('prefs.dark'),
+  systemLabel: t('prefs.system'),
+};
+---
+
+<BaseLayout title={title} description={t('meta.homeDescription')} locale={locale}>
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-surface-raised focus:px-4 focus:py-2"
+  >
+    {t('a11y.skipToContent')}
+  </a>
+  <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <header
+      transition:persist="admin-shell"
+      class="sticky top-0 z-30 border-b-[1.6px] border-ink bg-surface-raised lg:h-dvh lg:border-r-[1.6px] lg:border-b-0"
+    >
+      <div class="flex flex-col px-3 py-1.5 lg:h-full lg:gap-8 lg:px-4 lg:py-6">
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            data-nav-open
+            aria-controls="admin-nav-drawer"
+            aria-expanded="false"
+            aria-label={t('nav.menu')}
+            class="-ml-1.5 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-fg hover:bg-neutral-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet lg:hidden"
+          >
+            <Icon icon={Menu} size={24} />
+          </button>
+          <a
+            href={localizePath(ROUTES.dashboard, locale)}
+            class="flex min-h-11 min-w-0 grow flex-col justify-center rounded-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet lg:px-1"
+          >
+            <Wordmark name={t('app.name')} />
+            <span class="hidden pl-5.5 text-caption font-semibold tracking-wide text-violet uppercase lg:block">{t('app.area')}</span>
+          </a>
+          <div class="flex shrink-0 items-center gap-1.5 lg:hidden">
+            <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+            <ThemeToggle {...themeLabels} compact />
+          </div>
+        </div>
+        <!--
+          Phones and tablets: a modal drawer (showModal = focus kept inside, Esc closes, the page
+          behind is inert). From lg the same element is shown in place as the sidebar (global.css).
+        -->
+        <dialog id="admin-nav-drawer" data-nav-drawer aria-label={t('nav.menu')} class="admin-drawer">
+          <div class="flex h-full flex-col gap-4 overflow-y-auto p-3 lg:gap-8 lg:overflow-visible lg:p-0">
+            <div class="flex items-center justify-between gap-2 lg:hidden">
+              <Wordmark name={t('app.name')} />
+              <button
+                type="button"
+                data-nav-close
+                aria-label={t('nav.closeMenu')}
+                class="inline-flex size-11 items-center justify-center rounded-control text-fg hover:bg-neutral-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
+              >
+                <Icon icon={X} size={24} />
+              </button>
+            </div>
+            <nav aria-label={t('a11y.mainNav')}>
+              <ul class="flex flex-col gap-1">
+                {
+                  links.map((link) => (
+                    <li>
+                      <AdminNavLink href={link.href} route={link.route} label={link.label} icon={link.icon} isCurrent={link.isCurrent} />
+                    </li>
+                  ))
+                }
+              </ul>
+            </nav>
+            <div class="flex flex-col gap-4 border-t border-border pt-4 lg:mt-auto lg:pt-5">
+              <div role="group" aria-label={t('a11y.preferences')} class="hidden items-center justify-between gap-2 lg:flex">
+                <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+                <ThemeToggle {...themeLabels} compact />
+              </div>
+              <Session client:only="react" locale={locale}>
+                <div slot="fallback" class="h-11" aria-hidden="true"></div>
+              </Session>
+            </div>
+          </div>
+        </dialog>
+      </div>
+    </header>
+    <main id="main" class="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-3 p-4 sm:gap-6 sm:py-6 lg:px-8 lg:py-10">
+      <div class="flex flex-col gap-1 sm:gap-2">
+        <slot name="before-heading" />
+        <h1 class="font-display text-h2 font-bold tracking-tight sm:text-h1">{heading}</h1>
+        {intro && <p class="hidden max-w-prose text-body text-muted sm:block">{intro}</p>}
+      </div>
+      <slot />
+    </main>
+  </div>
+  <!-- The product tour: persisted, so its steps can open the next section without losing their place. -->
+  <Tour client:only="react" locale={locale} transition:persist="admin-tour">
+    <span slot="fallback" hidden></span>
+  </Tour>
+</BaseLayout>
+
+<script>
+  import { localeSwitchLinks, splitLocalePath } from '../app/i18n/routing';
+  import { prefetchRouteData } from '../app/lib/prefetchRoutes';
+
+  const NAV_LINKS = '[data-nav-route]';
+
+  /** The shell persists across swaps, so the current section is re-marked on every page. */
+  function markCurrent(): void {
+    const { path } = splitLocalePath(window.location.pathname);
+    for (const link of document.querySelectorAll<HTMLAnchorElement>(NAV_LINKS)) {
+      const route = link.dataset.navRoute ?? '';
+      if (path === route || path.startsWith(`${route}/`)) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+  }
+
+  /** ES | EN must open THIS page in the other language, not the page the shell was built on. */
+  function pointLocaleLinks(): void {
+    const targets = new Map(localeSwitchLinks(window.location.pathname).map((link) => [link.lang, link]));
+    for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[data-locale-choice]')) {
+      const target = targets.get(anchor.dataset.localeChoice as 'es-MX' | 'en-US');
+      if (!target) continue;
+      anchor.href = target.href;
+      if (target.isCurrent) anchor.setAttribute('aria-current', 'true');
+      else anchor.removeAttribute('aria-current');
+    }
+  }
+
+  /** Intent on a section warms its data (hover, keyboard focus, touch). */
+  function onIntent(event: Event): void {
+    const route = (event.target as Element | null)?.closest<HTMLElement>(NAV_LINKS)?.dataset.navRoute;
+    // prefetchRouteData never rejects (a failed warm-up only leaves the cache as it was).
+    if (route) prefetchRouteData(route);
+  }
+
+  const INTENT_EVENTS = ['pointerover', 'focusin', 'touchstart'] as const;
+
+  /*
+   * The navigation drawer (below lg). showModal() keeps the focus inside and makes the page
+   * inert; Esc closes it natively. A click on the backdrop (the dialog itself, outside its
+   * content), on a link or on any action inside closes it, so it never covers the page a link
+   * opens nor the tour a button starts; closing hands the focus back to the menu button.
+   */
+  const drawer = () => document.querySelector<HTMLDialogElement>('[data-nav-drawer]');
+  const opener = () => document.querySelector<HTMLButtonElement>('[data-nav-open]');
+  const DESKTOP = window.matchMedia('(min-width: 64rem)');
+
+  function closeDrawer(): void {
+    const dialog = drawer();
+    if (dialog?.open) dialog.close();
+    opener()?.setAttribute('aria-expanded', 'false');
+  }
+
+  function onOpenerClick(): void {
+    const dialog = drawer();
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    opener()?.setAttribute('aria-expanded', 'true');
+  }
+
+  function onDrawerClick(event: MouseEvent): void {
+    const dialog = drawer();
+    if (!dialog?.open) return;
+    const target = event.target as Element;
+    if (target === dialog || target.closest('a[href], button')) closeDrawer();
+  }
+
+  function onDrawerClose(): void {
+    const button = opener();
+    button?.setAttribute('aria-expanded', 'false');
+    if (!DESKTOP.matches) button?.focus();
+  }
+
+  function setup(): void {
+    markCurrent();
+    pointLocaleLinks();
+    for (const name of INTENT_EVENTS) {
+      document.removeEventListener(name, onIntent);
+      document.addEventListener(name, onIntent, { passive: true });
+    }
+    opener()?.addEventListener('click', onOpenerClick);
+    drawer()?.addEventListener('click', onDrawerClick);
+    drawer()?.addEventListener('close', onDrawerClose);
+    DESKTOP.addEventListener('change', closeDrawer);
+  }
+
+  function teardown(): void {
+    // Navigating away closes the drawer (the shell persists, so it would stay open on the next page).
+    closeDrawer();
+    for (const name of INTENT_EVENTS) document.removeEventListener(name, onIntent);
+    opener()?.removeEventListener('click', onOpenerClick);
+    drawer()?.removeEventListener('click', onDrawerClick);
+    drawer()?.removeEventListener('close', onDrawerClose);
+    DESKTOP.removeEventListener('change', closeDrawer);
+  }
+
+  // Bound on every page load and removed before each swap (WA4).
+  document.addEventListener('astro:page-load', setup);
+  document.addEventListener('astro:before-swap', teardown);
+</script>

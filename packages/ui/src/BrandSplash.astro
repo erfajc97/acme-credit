@@ -1,0 +1,261 @@
+---
+/**
+ * Brand splash (~1.6 s, first load of a session only): the logo mark (a mini Credi) pops and turns in, the
+ * letters of the name slide up, Credi walks in from the side and waves, then the overlay fades.
+ * Drawn only under `html[data-splash]` (SplashGate.astro, pre-paint). Decorative: aria-hidden,
+ * nothing focusable; the page underneath renders and loads the whole time. A click or Esc skips
+ * it (splash/splash-controller.ts). Reduced motion: the final composition, still, then a fade.
+ * The animated walk (~500 kB) is lazy and low priority; its 10 kB poster shows until the loop is
+ * decoded, then the loop REPLACES it (mascot/loop-ready.ts): exactly one Credi at a time, never
+ * the two stacked. The walker fades out before the waving pose fades in, so they never overlap
+ * either. The critical path never waits for the loop.
+ */
+import BrandMark from './BrandMark.astro';
+import {
+  MASCOT_POSE_SIZE,
+  MASCOT_POSE_SRC,
+  MASCOT_WALK_LOOP_SRC,
+  MASCOT_WALK_POSTER_SRC,
+  MASCOT_WALK_SIZE,
+} from './mascot/assets';
+
+interface Props {
+  /** The brand name ("Acme Credit"), from the app's dictionary. */
+  name: string;
+}
+
+const { name } = Astro.props;
+const words = name.split(' ').map((word) => [...word]);
+---
+
+<div data-brand-splash aria-hidden="true">
+  <div data-part="stage">
+    <div data-part="mascot">
+      <div data-part="walk">
+        <img data-part="poster" src={MASCOT_WALK_POSTER_SRC} alt="" width={MASCOT_WALK_SIZE} height={MASCOT_WALK_SIZE} loading="lazy" decoding="async" />
+        <img data-part="loop" src={MASCOT_WALK_LOOP_SRC} alt="" width={MASCOT_WALK_SIZE} height={MASCOT_WALK_SIZE} loading="lazy" decoding="async" fetchpriority="low" />
+      </div>
+      <img data-part="wave" src={MASCOT_POSE_SRC.wave} alt="" width={MASCOT_POSE_SIZE} height={MASCOT_POSE_SIZE} loading="lazy" decoding="async" />
+    </div>
+    <div data-part="word">
+      <span data-part="square"><BrandMark class="size-full" /></span>
+      <span data-part="letters">
+        {words.map((letters) => <span data-part="wordpart">{letters.map((letter) => <span data-part="letter">{letter}</span>)}</span>)}
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { revealLoopWhenReady } from './mascot/loop-ready';
+  import { startSplash } from './splash/splash-controller';
+
+  const walker = document.querySelector<HTMLElement>('[data-brand-splash] [data-part="walk"]');
+  // Never rejects (a failed loop keeps the poster), so nothing floats unhandled (G18).
+  if (walker && document.documentElement.dataset.splash) revealLoopWhenReady(walker);
+  startSplash({ root: document.documentElement, win: window });
+</script>
+
+<style is:global>
+  [data-brand-splash] {
+    display: none;
+  }
+
+  html[data-splash] [data-brand-splash] {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: var(--color-canvas);
+    transition:
+      opacity 300ms var(--ease-in),
+      transform 300ms var(--ease-in);
+  }
+
+  html[data-splash] [data-brand-splash][data-leaving] {
+    opacity: 0;
+    transform: translateY(-1.5rem);
+    pointer-events: none;
+  }
+
+  [data-part='stage'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  [data-part='mascot'] {
+    position: relative;
+    width: 10rem;
+    height: 10rem;
+  }
+
+  [data-part='mascot'] img,
+  [data-part='walk'] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* One walking Credi: the poster until the loop is decoded, then the loop alone. */
+  [data-part='loop'],
+  [data-part='walk'][data-loop-ready] [data-part='poster'] {
+    visibility: hidden;
+  }
+
+  [data-part='walk'][data-loop-ready] [data-part='loop'] {
+    visibility: visible;
+  }
+
+  [data-part='word'] {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-display);
+    font-size: var(--text-h1);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--color-fg);
+  }
+
+  [data-part='letters'] {
+    display: flex;
+    gap: 0.28em;
+  }
+
+  [data-part='letter'] {
+    display: inline-block;
+  }
+
+  [data-part='square'] {
+    display: flex;
+    width: 1.1em;
+    height: 1.1em;
+  }
+
+  @media (min-width: 48rem) {
+    [data-part='stage'] {
+      flex-direction: row;
+      gap: 2rem;
+    }
+
+    [data-part='mascot'] {
+      width: 14rem;
+      height: 14rem;
+    }
+
+    [data-part='word'] {
+      font-size: var(--text-h1-lg);
+    }
+  }
+
+  /* Full intro: everything is timed from the first paint. */
+  html[data-splash='full'] [data-part='mascot'] {
+    animation: brand-splash-walk-in 900ms var(--ease-out) both;
+  }
+
+  /* Walk out 880–1000 ms, THEN the wave in 1000–1120 ms: the two poses are never on screen together. */
+  html[data-splash='full'] [data-part='walk'] {
+    animation:
+      brand-splash-bob 300ms ease-in-out 3,
+      brand-splash-hide 120ms linear 880ms forwards;
+  }
+
+  html[data-splash='full'] [data-part='wave'] {
+    opacity: 0;
+    transform-origin: 50% 90%;
+    animation:
+      brand-splash-show 120ms linear 1000ms forwards,
+      brand-splash-wave 400ms ease-in-out 1000ms;
+  }
+
+  html[data-splash='full'] [data-part='square'] {
+    animation: brand-splash-square-pop 500ms var(--ease-out) both;
+  }
+
+  html[data-splash='full'] [data-part='letter'] {
+    animation: brand-splash-letter 380ms var(--ease-out) both;
+  }
+
+  /* A stagger per letter (no inline styles: the CSP allows none). */
+  [data-part='letter']:nth-child(1) { animation-delay: 220ms; }
+  [data-part='letter']:nth-child(2) { animation-delay: 260ms; }
+  [data-part='letter']:nth-child(3) { animation-delay: 300ms; }
+  [data-part='letter']:nth-child(4) { animation-delay: 340ms; }
+  [data-part='letter']:nth-child(5) { animation-delay: 380ms; }
+  [data-part='letter']:nth-child(6) { animation-delay: 420ms; }
+  [data-part='letter']:nth-child(n + 7) { animation-delay: 460ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(1) { animation-delay: 440ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(2) { animation-delay: 480ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(3) { animation-delay: 520ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(4) { animation-delay: 560ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(5) { animation-delay: 600ms; }
+  [data-part='wordpart']:nth-child(2) [data-part='letter']:nth-child(n + 6) { animation-delay: 640ms; }
+
+  /* Reduced motion: the final composition, still, then only the fade. */
+  html[data-splash='reduced'] [data-part='walk'] {
+    display: none;
+  }
+
+  @keyframes brand-splash-walk-in {
+    from {
+      translate: -70vw 0;
+    }
+  }
+
+  @keyframes brand-splash-bob {
+    50% {
+      translate: 0 -4%;
+    }
+  }
+
+  @keyframes brand-splash-hide {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes brand-splash-show {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes brand-splash-wave {
+    30% {
+      rotate: -6deg;
+    }
+
+    70% {
+      rotate: 5deg;
+    }
+  }
+
+  @keyframes brand-splash-square-pop {
+    0% {
+      transform: scale(0) rotate(-135deg);
+    }
+
+    70% {
+      transform: scale(1.18) rotate(10deg);
+    }
+
+    100% {
+      transform: none;
+    }
+  }
+
+  @keyframes brand-splash-letter {
+    from {
+      opacity: 0;
+      transform: translateY(0.6em);
+    }
+  }
+</style>

@@ -1,0 +1,19 @@
+---
+/** The card and its settings (WA11): private, client-only behind the session gate, skeleton fallback. */
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import Account from '../../../app/features/account/Account';
+import { getT, type Locale } from '../../../app/i18n';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AppLayout from '../../../layouts/AppLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AppLayout title={t('meta.cardTitle')} heading={t('card.pageTitle')} locale={locale} fit>
+  <Account client:only="react" locale={locale} screen="card">
+    <PageSkeleton slot="fallback" label={t('card.loading')} />
+  </Account>
+</AppLayout>

@@ -1,0 +1,23 @@
+---
+/**
+ * The audit log (WA11): private, client-only behind the session gate. Its filter lives in the
+ * URL (W17); the island persists across Back to this same page, so the ClientRouter's swap of the
+ * first entry does not remount it.
+ */
+import { PageSkeleton } from '../../app/components/PageSkeleton';
+import AuditLog from '../../app/features/audit-log/AuditLog';
+import { getT, type Locale } from '../../app/i18n';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.auditLogTitle')} heading={t('auditLog.pageTitle')} intro={t('auditLog.intro')} locale={locale}>
+  <AuditLog client:only="react" locale={locale} transition:persist="audit-log-list">
+    <PageSkeleton slot="fallback" label={t('auditLog.loading')} />
+  </AuditLog>
+</AdminLayout>

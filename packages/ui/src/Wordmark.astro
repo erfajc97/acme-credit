@@ -1,0 +1,18 @@
+---
+/**
+ * The wordmark (docs/brand.md › Logo): "Acme Credit" in Golos Text 700 after the mark, a mini
+ * Credi drawn as SVG (BrandMark.astro). Never Belozfi's logo or name.
+ */
+import BrandMark from './BrandMark.astro';
+
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+---
+
+<span class="inline-flex items-center gap-2 font-display text-h3 font-bold tracking-tight text-fg">
+  <BrandMark class="size-7" />
+  {name}
+</span>

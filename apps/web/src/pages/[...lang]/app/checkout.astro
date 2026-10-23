@@ -1,0 +1,19 @@
+---
+/** Checkout (WA11): private, client-only behind the session gate, skeleton fallback. */
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import Checkout from '../../../app/features/checkout/Checkout';
+import { getT, type Locale } from '../../../app/i18n';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AppLayout from '../../../layouts/AppLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AppLayout title={t('meta.checkoutTitle')} heading={t('checkout.pageTitle')} locale={locale}>
+  <Checkout client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('checkout.loading')} />
+  </Checkout>
+</AppLayout>

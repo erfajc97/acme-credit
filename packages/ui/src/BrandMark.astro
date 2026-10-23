@@ -1,0 +1,24 @@
+---
+/**
+ * The logo mark: a mini Credi (yellow card, tilted, two eyes, a smile and the violet chip) with
+ * its ink outline and hard offset shadow, drawn as SVG so it stays crisp from 16 px. Tokens only:
+ * the outline is `on-brand` (ink in both themes, like the payment card). The favicon files are the
+ * same drawing with literal colors (assets/brand/mark.svg). Decorative: the wordmark names it.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class:list={['shrink-0', className]}>
+  <g transform="rotate(-8 16 16)">
+    <rect x="8" y="5.5" width="19" height="24" rx="4" class="fill-on-brand"></rect>
+    <rect x="5.5" y="3" width="19" height="24" rx="4" class="fill-brand-500 stroke-on-brand" stroke-width="2"></rect>
+    <ellipse cx="11.6" cy="11.2" rx="1.9" ry="2.5" class="fill-on-brand"></ellipse>
+    <ellipse cx="18.4" cy="11.2" rx="1.9" ry="2.5" class="fill-on-brand"></ellipse>
+    <path d="M11.5 16.2q3.5 2.6 7 0" fill="none" stroke-width="1.8" stroke-linecap="round" class="stroke-on-brand"></path>
+    <rect x="15.2" y="19.2" width="6" height="4.8" rx="1.1" stroke-width="1.2" class="fill-violet stroke-on-brand"></rect>
+  </g>
+</svg>

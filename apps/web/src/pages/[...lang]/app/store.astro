@@ -1,0 +1,19 @@
+---
+/** The in-wallet store (WA11): private, client-only behind the session gate, skeleton fallback. */
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import Store from '../../../app/features/store/Store';
+import { getT, type Locale } from '../../../app/i18n';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AppLayout from '../../../layouts/AppLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AppLayout title={t('meta.storeTitle')} heading={t('store.pageTitle')} intro={t('store.pageIntro')} locale={locale}>
+  <Store client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('store.loading')} />
+  </Store>
+</AppLayout>

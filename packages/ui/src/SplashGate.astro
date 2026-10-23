@@ -1,0 +1,11 @@
+---
+/**
+ * The brand splash's pre-paint gate (splash/splash-gate.ts), inlined in <head> after ThemeScript.
+ * Pair it with BrandSplash (first child of <body>) and add `splashGateScriptHash()` from
+ * `@acme/ui/theme-hash` to the app's CSP script hashes.
+ */
+import { SPLASH_GATE_SCRIPT } from './splash/splash-gate';
+// set:html renders a build-time constant (no user data), so W14 does not apply here.
+---
+
+<script is:inline set:html={SPLASH_GATE_SCRIPT} />

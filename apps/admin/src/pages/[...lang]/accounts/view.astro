@@ -1,0 +1,43 @@
+---
+/**
+ * One account (WA11): `/accounts/view?id=…` keeps the build static (no getStaticPaths for ids
+ * nobody knows at build time). The back link is the plain list in HTML; the script swaps its
+ * href for the remembered, filtered list (W17) on every page load (WA4).
+ */
+import { ArrowLeft } from 'lucide-react';
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import { Icon } from '../../../app/components/UI/Icon';
+import AccountDetail from '../../../app/features/account-detail/AccountDetail';
+import { ACCOUNTS_LIST } from '../../../app/helpers/listQuery';
+import { getT, type Locale } from '../../../app/i18n';
+import { localizePath } from '../../../app/i18n/routing';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.accountTitle')} heading={t('meta.accountHeading')} locale={locale}>
+  <a
+    slot="before-heading"
+    href={localizePath(ACCOUNTS_LIST.path, locale)}
+    data-list-back={ACCOUNTS_LIST.name}
+    class="inline-flex min-h-11 items-center gap-2 self-start rounded-control text-small font-semibold text-violet hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
+  >
+    <Icon icon={ArrowLeft} size={16} />
+    {t('common.backToAccounts')}
+  </a>
+  <AccountDetail client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('accountDetail.loading')} variant="detail" />
+  </AccountDetail>
+</AdminLayout>
+
+<script>
+  import { applyListBackLinks } from '../../../app/helpers/listMemory';
+
+  // Page setup runs on every ClientRouter page load, not once per full load (WA4).
+  document.addEventListener('astro:page-load', () => applyListBackLinks(document));
+</script>

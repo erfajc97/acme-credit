@@ -1,0 +1,57 @@
+{
+  "kitVersion": "0.1.3",
+  "project": "acme-credit",
+  "rigor": "full",
+  "locale": { "code": "en", "ui": "en-US" },
+  "requirements": {
+    "source": "docs/challenge.md",
+    "idScheme": "R-12",
+    "checklist": "docs/requirements-checklist.md"
+  },
+  "tracking": "plan",
+  "commitStyle": "tags",
+  "coverage": 90,
+  "testRunner": { "api": "vitest", "network": "vitest", "web": "vitest", "admin": "vitest" },
+  "scopes": {
+    "api": { "kind": "api", "stack": "nestjs", "path": "apps/api", "mode": "enforce", "validator": "nestjs-zod" },
+    "network": { "kind": "api", "stack": "nestjs", "path": "apps/card-network", "mode": "enforce", "validator": "nestjs-zod" },
+    "web": { "kind": "web", "stack": "astro", "path": "apps/web", "mode": "enforce" },
+    "admin": { "kind": "web", "stack": "astro", "path": "apps/admin", "mode": "enforce" }
+  },
+  "addons": ["money", "observability"],
+  "brand": "docs/brand.md",
+  "commands": {
+    "api": {
+      "lint": "pnpm --filter @acme/api lint",
+      "typecheck": "pnpm --filter @acme/api typecheck",
+      "test": "pnpm --filter @acme/api test",
+      "integration": "pnpm --filter @acme/api test:integration",
+      "build": "pnpm --filter @acme/api build"
+    },
+    "network": {
+      "lint": "pnpm --filter @acme/card-network lint",
+      "typecheck": "pnpm --filter @acme/card-network typecheck",
+      "test": "pnpm --filter @acme/card-network test",
+      "integration": "pnpm --filter @acme/card-network test:integration",
+      "build": "pnpm --filter @acme/card-network build"
+    },
+    "web": {
+      "lint": "pnpm --filter @acme/web lint",
+      "typecheck": "pnpm --filter @acme/web typecheck",
+      "test": "pnpm --filter @acme/web test",
+      "build": "pnpm --filter @acme/web build"
+    },
+    "admin": {
+      "lint": "pnpm --filter @acme/admin lint",
+      "typecheck": "pnpm --filter @acme/admin typecheck",
+      "test": "pnpm --filter @acme/admin test",
+      "build": "pnpm --filter @acme/admin build"
+    },
+    "e2e": "pnpm --filter @acme/e2e test"
+  },
+  "audit": {
+    "chain": ["rules", "tests", "security", "ux", "challenge"],
+    "milestone": ["judgment", "senior"]
+  },
+  "seal": false
+}

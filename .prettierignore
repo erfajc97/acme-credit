@@ -1,0 +1,13 @@
+pnpm-lock.yaml
+dist
+coverage
+.astro
+.turbo
+node_modules
+**/prisma/migrations/**
+CLAUDE.md
+docs
+.claude
+
+# Session cache of the E2E suite (git-ignored, written at run time)
+e2e/.auth

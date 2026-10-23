@@ -1,0 +1,40 @@
+---
+/**
+ * Credi in one pose, for static markup (WA1): the same sizes and motions as the React `Mascot`.
+ * Decorative (alt="") unless `label` is given.
+ */
+import { MASCOT_POSE_SIZE, MASCOT_POSE_SRC, type MascotPose } from './mascot/assets';
+
+interface Props {
+  pose: MascotPose;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  motion?: 'none' | 'float' | 'bob';
+  label?: string;
+  loading?: 'eager' | 'lazy';
+  class?: string;
+}
+
+const { pose, size = 'md', motion = 'none', label, loading = 'lazy', class: className } = Astro.props;
+---
+
+<img
+  src={MASCOT_POSE_SRC[pose]}
+  alt={label ?? ''}
+  width={MASCOT_POSE_SIZE}
+  height={MASCOT_POSE_SIZE}
+  loading={loading}
+  decoding="async"
+  draggable="false"
+  data-pose={pose}
+  class:list={[
+    'object-contain select-none',
+    size === 'xs' && 'size-10',
+    size === 'sm' && 'size-16',
+    size === 'md' && 'size-24',
+    size === 'lg' && 'size-36',
+    size === 'xl' && 'size-56',
+    motion === 'float' && 'animate-mascot-float',
+    motion === 'bob' && 'animate-mascot-bob',
+    className,
+  ]}
+/>

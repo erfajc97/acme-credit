@@ -1,0 +1,8 @@
+# Local Terraform state and inputs never reach git (the lock file does).
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.tfplan
+crash.log
+

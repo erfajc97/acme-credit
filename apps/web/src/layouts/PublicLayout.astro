@@ -1,0 +1,69 @@
+---
+/** Public pages: static header (language, theme, sign in) and footer (WA1); no island. */
+import { buttonLinkClass } from '@acme/ui';
+import LocaleSwitch from '@acme/ui/LocaleSwitch.astro';
+import ThemeToggle from '@acme/ui/ThemeToggle.astro';
+import Wordmark from '@acme/ui/Wordmark.astro';
+import { getT, type Locale } from '../app/i18n';
+import { localeSwitchLinks, localizePath } from '../app/i18n/routing';
+import { ROUTES } from '../app/lib/endpoints';
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown>;
+  /** Hides the header's sign-in / get-started links (on the auth pages themselves). */
+  bare?: boolean;
+}
+
+const { bare = false, ...seo } = Astro.props;
+const t = getT(seo.locale);
+const localeLinks = localeSwitchLinks(Astro.url.pathname).map((link) => ({
+  ...link,
+  name: link.lang === 'en-US' ? t('prefs.english') : t('prefs.spanish'),
+}));
+---
+
+<BaseLayout {...seo}>
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-surface-raised focus:px-4 focus:py-2"
+  >
+    {t('a11y.skipToContent')}
+  </a>
+  <header class="border-b-[1.6px] border-ink bg-surface-raised">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-2 md:px-8 md:py-3 2xl:max-w-400">
+      <a href={localizePath(ROUTES.home, seo.locale)} class="flex min-h-11 items-center rounded-control">
+        <Wordmark name={t('app.name')} />
+      </a>
+      <div class="flex items-center gap-2">
+        <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+        <ThemeToggle label={t('prefs.theme')} lightLabel={t('prefs.light')} darkLabel={t('prefs.dark')} systemLabel={t('prefs.system')} compact />
+        {
+          !bare && (
+            <nav aria-label={t('a11y.mainNav')} class="hidden items-center gap-2 md:flex">
+              <a href={localizePath(ROUTES.signIn, seo.locale)} class={buttonLinkClass({ variant: 'ghost' })}>
+                {t('nav.signIn')}
+              </a>
+              <a href={localizePath(ROUTES.signUp, seo.locale)} class={buttonLinkClass()}>
+                {t('nav.getStarted')}
+              </a>
+            </nav>
+          )
+        }
+      </div>
+    </div>
+  </header>
+  <main id="main" class="flex flex-1 flex-col">
+    <slot />
+  </main>
+  <footer class="border-t-[1.6px] border-ink bg-surface-raised">
+    <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8 2xl:max-w-400">
+      <Wordmark name={t('app.name')} />
+      <p class="text-small text-muted">{t('landing.footer')}</p>
+    </div>
+  </footer>
+</BaseLayout>

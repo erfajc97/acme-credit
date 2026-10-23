@@ -1,0 +1,30 @@
+---
+/**
+ * One destination of the console shell. `route` is the unprefixed route: the shell's script
+ * re-marks the current one (aria-current) after every ClientRouter swap, because the shell itself
+ * persists. Current = an ink pill (yellow stays for the page's one primary action); the rest are
+ * icon + label that darken on hover.
+ */
+import type { LucideIcon } from 'lucide-react';
+import { Icon } from '../app/components/UI/Icon';
+
+interface Props {
+  href: string;
+  route: string;
+  label: string;
+  icon: LucideIcon;
+  isCurrent: boolean;
+}
+
+const { href, route, label, icon, isCurrent } = Astro.props;
+---
+
+<a
+  href={href}
+  data-nav-route={route}
+  aria-current={isCurrent ? 'page' : undefined}
+  class="flex min-h-11 shrink-0 items-center gap-2.5 rounded-control border-[1.6px] border-transparent px-3.5 text-small font-semibold whitespace-nowrap text-muted transition-colors duration-fast ease-out hover:bg-neutral-soft hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet aria-[current=page]:border-ink aria-[current=page]:bg-fg aria-[current=page]:text-canvas aria-[current=page]:hover:bg-fg lg:min-h-10"
+>
+  <Icon icon={icon} size={20} />
+  <span>{label}</span>
+</a>

@@ -1,0 +1,72 @@
+---
+/**
+ * ES | EN: links to the same page in each locale (never an automatic redirect, WA6). The choice is
+ * stored per device when clicked. A full load (data-astro-reload) because the app shell persists
+ * across ClientRouter navigations and must re-render in the new language.
+ */
+interface LocaleLink {
+  /** Short visible code, e.g. "ES". */
+  code: string;
+  /** Full name in its own language, e.g. "Español": read after the visible code (label in name). */
+  name: string;
+  /** BCP 47 tag of the target page, e.g. "es-MX". */
+  lang: string;
+  href: string;
+  isCurrent: boolean;
+}
+
+interface Props {
+  /** Names the group, e.g. "Language". */
+  label: string;
+  links: LocaleLink[];
+}
+
+const { label, links } = Astro.props;
+---
+
+<nav aria-label={label}>
+  <ul class="inline-flex items-center gap-0.5 rounded-control border-[1.6px] border-ink bg-surface-raised p-0.5">
+    {
+      links.map((link) => (
+        <li>
+          <a
+            href={link.href}
+            hreflang={link.lang}
+            lang={link.lang}
+            aria-current={link.isCurrent ? 'true' : undefined}
+            data-astro-reload
+            data-locale-choice={link.lang}
+            class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control px-2.5 text-small font-bold text-muted transition-colors duration-fast ease-out hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet aria-current:bg-brand-500 aria-current:text-on-brand"
+          >
+            {link.code}<span class="sr-only"> ({link.name})</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<script>
+  /** The language the customer picked, remembered per device (no personal data). */
+  const LOCALE_STORAGE_KEY = 'acme-locale';
+
+  function onClick(event: MouseEvent): void {
+    const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('[data-locale-choice]');
+    if (!link?.dataset.localeChoice) return;
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, link.dataset.localeChoice);
+    } catch {
+      // Storage blocked: the link still opens the page in that language.
+    }
+  }
+
+  // Delegated, bound per page and removed before a ClientRouter swap (WA4).
+  function setup(): void {
+    document.removeEventListener('click', onClick);
+    document.addEventListener('click', onClick);
+  }
+
+  setup();
+  document.addEventListener('astro:page-load', setup);
+  document.addEventListener('astro:before-swap', () => document.removeEventListener('click', onClick));
+</script>

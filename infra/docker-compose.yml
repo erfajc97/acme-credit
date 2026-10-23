@@ -1,0 +1,190 @@
+# Local stack. Run it through the root scripts (`pnpm docker:up`, `pnpm infra:up`), which pass
+# `--env-file .env` so the values below come from the repo's .env (see .env.example).
+# Every port binds to 127.0.0.1: nothing here is reachable from the LAN.
+name: acme-credit
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      - '127.0.0.1:${POSTGRES_HOST_PORT:-5434}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # S3-compatible object storage (statements, exports). MinIO no longer publishes community
+  # images; RustFS speaks the same S3 API, and AWS uses real S3 with the same SDK (ADR-0005).
+  object-storage:
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports:
+      - '127.0.0.1:${S3_HOST_PORT:-9000}:9000'
+      - '127.0.0.1:${S3_CONSOLE_HOST_PORT:-9001}:9001'
+    volumes:
+      - object-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fs http://127.0.0.1:9000/health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  object-storage-init:
+    image: amazon/aws-cli:2.38.3
+    depends_on:
+      object-storage:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY in .env}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY in .env}
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >-
+        aws --endpoint-url http://object-storage:9000 s3api head-bucket --bucket "$$S3_BUCKET" ||
+        aws --endpoint-url http://object-storage:9000 s3api create-bucket --bucket "$$S3_BUCKET"
+
+  # Lending core. Explicit environment: each service gets only what it needs (no shared env_file).
+  # start-prod.mjs runs `prisma migrate deploy`, then the seed, then the API (migrations first).
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        PACKAGE: '@acme/api'
+    command: ['node', 'scripts/start-prod.mjs']
+    environment: &core-env
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CORS_ORIGINS: http://localhost:${WEB_PORT:-4321},http://localhost:${ADMIN_PORT:-4322}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS:-604800}
+      # COOKIE_SECURE is not passed: production always sets the refresh cookie Secure (browsers
+      # accept it on http://localhost) and refuses COOKIE_SECURE=false.
+      NETWORK_SIGNING_SECRET: ${NETWORK_SIGNING_SECRET:?set NETWORK_SIGNING_SECRET in .env}
+      PROVIDER_SIGNING_SECRET: ${PROVIDER_SIGNING_SECRET:?set PROVIDER_SIGNING_SECRET in .env}
+      PROVIDER_API_URL: http://card-network:3001
+      PROVIDER_API_SECRET: ${PROVIDER_API_SECRET:?set PROVIDER_API_SECRET in .env}
+      HOLD_TTL_HOURS: ${HOLD_TTL_HOURS:-168}
+      PENDING_PAYMENT_TTL_MINUTES: ${PENDING_PAYMENT_TTL_MINUTES:-30}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL in .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD in .env}
+      # The demo customer is optional in production: the seed needs these only when
+      # SEED_DEMO_CUSTOMER=true, and then refuses missing, short or placeholder values.
+      SEED_CUSTOMER_EMAIL: ${SEED_CUSTOMER_EMAIL:-}
+      SEED_CUSTOMER_PASSWORD: ${SEED_CUSTOMER_PASSWORD:-}
+      SEED_DEMO_CUSTOMER: ${SEED_DEMO_CUSTOMER:-false}
+    ports:
+      - '127.0.0.1:${API_PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      object-storage-init:
+        condition: service_completed_successfully
+
+  # Outbox relay + provider sweep (P2): same image and settings as the API, no HTTP port.
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        PACKAGE: '@acme/api'
+    command: ['node', 'dist/worker.js']
+    environment: *core-env
+    # No HTTP port: healthy while the relay process (PID 1) is alive. `compose up --wait` refuses
+    # services without a healthcheck, so this keeps `pnpm start` green.
+    healthcheck:
+      test: ['CMD', 'node', '-e', 'process.kill(1, 0)']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Outside the core's trust boundary (P3): no database or storage credentials.
+  card-network:
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        PACKAGE: '@acme/card-network'
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CORS_ORIGINS: http://localhost:${WEB_PORT:-4321}
+      CORE_API_URL: http://api:3000
+      PUBLIC_URL: http://localhost:${NETWORK_PORT:-3001}
+      WEB_URL: http://localhost:${WEB_PORT:-4321}
+      CAPTURE_DELAY_MS: ${CAPTURE_DELAY_MS:-4000}
+      NETWORK_SIGNING_SECRET: ${NETWORK_SIGNING_SECRET:?set NETWORK_SIGNING_SECRET in .env}
+      PROVIDER_SIGNING_SECRET: ${PROVIDER_SIGNING_SECRET:?set PROVIDER_SIGNING_SECRET in .env}
+      PROVIDER_API_SECRET: ${PROVIDER_API_SECRET:?set PROVIDER_API_SECRET in .env}
+    ports:
+      - '127.0.0.1:${NETWORK_PORT:-3001}:3001'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/docker/static-site.Dockerfile
+      args:
+        PACKAGE: '@acme/web'
+        APP_DIR: apps/web
+        PUBLIC_API_URL: http://localhost:${API_PORT:-3000}
+        PUBLIC_NETWORK_URL: http://localhost:${NETWORK_PORT:-3001}
+        SITE_URL: http://localhost:${WEB_PORT:-4321}
+        # Demo fill button: off unless .env turns it on; only the customer reaches this bundle.
+        PUBLIC_DEMO_MODE: ${PUBLIC_DEMO_MODE:-false}
+        PUBLIC_DEMO_EMAIL: ${PUBLIC_DEMO_EMAIL:-}
+        PUBLIC_DEMO_PASSWORD: ${PUBLIC_DEMO_PASSWORD:-}
+    ports:
+      - '127.0.0.1:${WEB_PORT:-4321}:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  admin:
+    build:
+      context: ..
+      dockerfile: infra/docker/static-site.Dockerfile
+      args:
+        PACKAGE: '@acme/admin'
+        APP_DIR: apps/admin
+        PUBLIC_API_URL: http://localhost:${API_PORT:-3000}
+        SITE_URL: http://localhost:${ADMIN_PORT:-4322}
+        # Demo fill button: off unless .env turns it on; only the admin reaches this bundle.
+        PUBLIC_DEMO_MODE: ${PUBLIC_DEMO_MODE:-false}
+        PUBLIC_DEMO_ADMIN_EMAIL: ${PUBLIC_DEMO_ADMIN_EMAIL:-}
+        PUBLIC_DEMO_ADMIN_PASSWORD: ${PUBLIC_DEMO_ADMIN_PASSWORD:-}
+    ports:
+      - '127.0.0.1:${ADMIN_PORT:-4322}:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  object-data:

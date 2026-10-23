@@ -1,0 +1,19 @@
+---
+/** Activity: orders and movements (WA11): private, client-only behind the session gate. */
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import Activity from '../../../app/features/activity/Activity';
+import { getT, type Locale } from '../../../app/i18n';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AppLayout from '../../../layouts/AppLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AppLayout title={t('meta.activityTitle')} heading={t('activity.pageTitle')} intro={t('activity.pageIntro')} locale={locale}>
+  <Activity client:only="react" locale={locale}>
+    <PageSkeleton slot="fallback" label={t('activity.loading')} />
+  </Activity>
+</AppLayout>

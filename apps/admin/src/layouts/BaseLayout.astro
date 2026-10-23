@@ -1,0 +1,47 @@
+---
+/**
+ * HTML shell of every console page: metadata, fonts, theme before paint (W8) and the ClientRouter
+ * (WA4: client-side navigation keeps the QueryClient, the in-memory session and the persisted
+ * shell). The console is private: every page is noindex (WA6, WA11). Strings arrive translated.
+ * The brand splash plays once per browser session (@acme/ui, packages/ui/MASCOT.md).
+ */
+import BrandSplash from '@acme/ui/BrandSplash.astro';
+import FontPreload from '@acme/ui/FontPreload.astro';
+import SplashGate from '@acme/ui/SplashGate.astro';
+import ThemeScript from '@acme/ui/ThemeScript.astro';
+import { ClientRouter } from 'astro:transitions';
+import '../styles/global.css';
+import { getT, type Locale } from '../app/i18n';
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+}
+
+const { title, description, locale } = Astro.props;
+const t = getT(locale);
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <FontPreload />
+    <ThemeScript />
+    <SplashGate />
+    <ClientRouter />
+  </head>
+  <body class="min-h-dvh bg-canvas font-body text-fg antialiased">
+    <BrandSplash name={t('app.name')} />
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,50 @@
+---
+/** Admin sign in (noindex like every console page). The form is interactive at once: client:load. */
+import LocaleSwitch from '@acme/ui/LocaleSwitch.astro';
+import ThemeToggle from '@acme/ui/ThemeToggle.astro';
+import Wordmark from '@acme/ui/Wordmark.astro';
+import SignIn from '../../app/features/sign-in/SignIn';
+import { getT, type Locale } from '../../app/i18n';
+import { localeSwitchLinks } from '../../app/i18n/routing';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+const localeLinks = localeSwitchLinks(Astro.url.pathname).map((link) => ({
+  ...link,
+  name: link.lang === 'en-US' ? t('prefs.english') : t('prefs.spanish'),
+}));
+---
+
+<BaseLayout title={t('meta.signInTitle')} description={t('meta.homeDescription')} locale={locale}>
+  <div class="flex min-h-dvh flex-col bg-cream">
+    <header class="border-b-[1.6px] border-ink bg-surface-raised">
+      <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-2">
+        <Wordmark name={t('app.name')} />
+        <div role="group" aria-label={t('a11y.preferences')} class="flex items-center gap-2">
+          <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+          <ThemeToggle
+            label={t('prefs.theme')}
+            lightLabel={t('prefs.light')}
+            darkLabel={t('prefs.dark')}
+            systemLabel={t('prefs.system')}
+            compact
+          />
+        </div>
+      </div>
+    </header>
+    <main id="main" class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-10">
+      <div class="flex flex-col gap-2">
+        <p class="text-caption font-semibold tracking-wide text-violet uppercase">{t('app.area')}</p>
+        <h1 class="font-display text-h1 font-bold tracking-tight">{t('auth.signIn.title')}</h1>
+        <p class="text-body text-muted">{t('auth.signIn.intro')}</p>
+      </div>
+      <div class="rounded-card border-[1.6px] border-ink bg-surface-raised p-5 shadow-raised md:p-6">
+        <SignIn client:load locale={locale} />
+      </div>
+    </main>
+  </div>
+</BaseLayout>

@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+@import '@heroui/styles';
+@import '@acme/ui/theme.css';
+@import '@acme/ui/fonts.css';
+
+@source '../../../../packages/ui/src';
+
+/*
+ * Skeletons show only when loading takes longer than 200 ms: after a ClientRouter swap the island
+ * renders cached data within a few frames, and a skeleton flashing in between reads as a reload.
+ */
+@theme {
+  --animate-reveal-late: reveal-late 1ms 200ms both;
+
+  @keyframes reveal-late {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/*
+ * The console's navigation (layouts/AdminLayout.astro). Below lg it is a modal <dialog> that slides
+ * in from the left over the theme's modal backdrop, and the page behind stops scrolling while it is
+ * open; reduced motion shows it at once. From lg the same element is the sidebar, shown in place
+ * (a closed dialog is only hidden by the browser's own style, which these rules override).
+ */
+@utility admin-drawer {
+  @media (width < 64rem) {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(20rem, 85vw);
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-right: 1.6px solid var(--color-ink);
+    background-color: var(--color-surface-raised);
+    color: var(--color-fg);
+    translate: -100% 0;
+    transition:
+      translate var(--transition-duration-normal) var(--ease-out),
+      overlay var(--transition-duration-normal) allow-discrete,
+      display var(--transition-duration-normal) allow-discrete;
+
+    &[open] {
+      translate: 0 0;
+
+      @starting-style {
+        translate: -100% 0;
+      }
+    }
+
+    &::backdrop {
+      background-color: var(--app-backdrop);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  @media (width >= 64rem) {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: auto;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+html:has(.admin-drawer[open]) {
+  overflow: hidden;
+}
+
+/*
+ * The product tour's spotlight (features/tour): the page around the section is dimmed with the
+ * theme's own modal backdrop, so it matches every dialog in both themes.
+ */
+@utility tour-dim {
+  background-color: var(--app-backdrop);
+}

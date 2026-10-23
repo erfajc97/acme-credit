@@ -1,0 +1,118 @@
+---
+import ThemeGlyph from './ThemeGlyph.astro';
+
+/**
+ * Light / Dark / System, stored per device (theme-choice.ts). Static markup plus one small bundled
+ * script: no island (WA1). The full variant is a segmented control; `compact` is one button that
+ * cycles light → dark → system. Labels arrive translated (W12). The pressed state and the icon are
+ * set on the client after load: the server cannot know the stored choice.
+ */
+interface Props {
+  /** Names the group, e.g. "Theme". */
+  label: string;
+  lightLabel: string;
+  darkLabel: string;
+  systemLabel: string;
+  /** One cycling icon button (its name says the current theme), for tight headers. */
+  compact?: boolean;
+}
+
+const { label, lightLabel, darkLabel, systemLabel, compact = false } = Astro.props;
+const options = [
+  { choice: 'light', label: lightLabel },
+  { choice: 'dark', label: darkLabel },
+  { choice: 'system', label: systemLabel },
+] as const;
+---
+
+{
+  compact ? (
+    <button
+      type="button"
+      data-theme-cycle
+      data-label={label}
+      data-light-label={lightLabel}
+      data-dark-label={darkLabel}
+      data-system-label={systemLabel}
+      aria-label={label}
+      class="inline-flex size-11 items-center justify-center rounded-control border-[1.6px] border-ink bg-surface-raised text-fg transition-colors duration-fast ease-out hover:bg-neutral-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet"
+    >
+      {options.map((option) => (
+        <span data-theme-icon={option.choice} class="hidden" aria-hidden="true">
+          <ThemeGlyph choice={option.choice} />
+        </span>
+      ))}
+    </button>
+  ) : (
+    <div
+      role="group"
+      aria-label={label}
+      class="inline-flex items-center gap-0.5 rounded-control border-[1.6px] border-ink bg-surface-raised p-0.5"
+    >
+      {options.map((option) => (
+        <button
+          type="button"
+          data-theme-choice={option.choice}
+          aria-pressed="false"
+          class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control px-3 text-small font-semibold text-muted transition-colors duration-fast ease-out hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet aria-pressed:bg-fg aria-pressed:text-canvas"
+        >
+          <ThemeGlyph choice={option.choice} />
+          <span>{option.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+<script>
+  import {
+    applyThemeChoice,
+    nextThemeChoice,
+    readThemeChoice,
+    type ThemeChoice,
+  } from './theme-choice';
+
+  const CHOICE_BUTTONS = '[data-theme-choice]';
+  const CYCLE_BUTTONS = '[data-theme-cycle]';
+  const LABEL_KEY: Record<ThemeChoice, 'lightLabel' | 'darkLabel' | 'systemLabel'> = {
+    light: 'lightLabel',
+    dark: 'darkLabel',
+    system: 'systemLabel',
+  };
+
+  /** Pressed option, cycle icon and the cycle button's name ("Theme: Dark") follow the stored choice. */
+  function sync(): void {
+    const current = readThemeChoice();
+    for (const button of document.querySelectorAll<HTMLButtonElement>(CHOICE_BUTTONS)) {
+      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === current));
+    }
+    for (const button of document.querySelectorAll<HTMLButtonElement>(CYCLE_BUTTONS)) {
+      button.setAttribute('aria-label', `${button.dataset.label}: ${button.dataset[LABEL_KEY[current]]}`);
+      for (const icon of button.querySelectorAll<HTMLElement>('[data-theme-icon]')) {
+        icon.classList.toggle('hidden', icon.dataset.themeIcon !== current);
+      }
+    }
+  }
+
+  function onClick(event: MouseEvent): void {
+    const target = event.target as Element | null;
+    const choiceButton = target?.closest<HTMLButtonElement>(CHOICE_BUTTONS);
+    if (choiceButton) applyThemeChoice(choiceButton.dataset.themeChoice as ThemeChoice);
+    else if (target?.closest(CYCLE_BUTTONS)) applyThemeChoice(nextThemeChoice(readThemeChoice()));
+    else return;
+    sync();
+  }
+
+  // One delegated listener per page: bound on load, removed before the ClientRouter swaps the page
+  // (WA4). Pages without the router never fire astro:page-load, so it also binds right away;
+  // removing first keeps the binding single.
+  function setup(): void {
+    document.removeEventListener('click', onClick);
+    document.addEventListener('click', onClick);
+    sync();
+  }
+
+  setup();
+  document.addEventListener('astro:page-load', setup);
+  document.addEventListener('astro:before-swap', () => document.removeEventListener('click', onClick));
+</script>

@@ -1,0 +1,216 @@
+---
+/**
+ * Private pages (WA11): noindex, the app shell and the page's island. Phones: a compact top bar
+ * (wordmark, language, theme) and a floating tab bar within thumb reach (W9). From lg: a left
+ * sidebar with the same destinations, the preferences and who is signed in. The shell persists
+ * across ClientRouter navigations (transition:persist): it does not remount, so its islands keep
+ * their state and the cart badge stays live; a script re-marks the current destination.
+ */
+import LocaleSwitch from '@acme/ui/LocaleSwitch.astro';
+import ThemeToggle from '@acme/ui/ThemeToggle.astro';
+import WalkingMascot from '@acme/ui/WalkingMascot.astro';
+import Wordmark from '@acme/ui/Wordmark.astro';
+import { CreditCard, House, ReceiptText, ShoppingBag, UserRound } from 'lucide-react';
+import AppNavLink from '../components/AppNavLink.astro';
+import CartCount from '../app/features/cart-count/CartCount';
+import ProductTour from '../app/features/product-tour/ProductTour';
+import Session from '../app/features/session/Session';
+import { getT, type Locale } from '../app/i18n';
+import { localeSwitchLinks, localizePath, splitLocalePath } from '../app/i18n/routing';
+import { ROUTES } from '../app/lib/endpoints';
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  /** The static page heading (the island renders below it). */
+  heading: string;
+  intro?: string;
+  locale: Locale;
+  /**
+   * The page fits the viewport from lg with a mouse or trackpad (the `fit:` variant): the shell is
+   * exactly one screen tall and the island's own panels scroll inside. Phones, tablets and touch
+   * screens scroll the page normally: nested scroll boxes trap swipes there.
+   */
+  fit?: boolean;
+}
+
+const { title, heading, intro, locale, fit = false } = Astro.props;
+const t = getT(locale);
+const { path } = splitLocalePath(Astro.url.pathname);
+const links = [
+  { route: ROUTES.app, label: t('nav.home'), icon: House },
+  { route: ROUTES.card, label: t('nav.card'), icon: CreditCard },
+  { route: ROUTES.store, label: t('nav.store'), icon: ShoppingBag, hasCart: true },
+  { route: ROUTES.activity, label: t('nav.activity'), icon: ReceiptText },
+  { route: ROUTES.profile, label: t('nav.profile'), icon: UserRound },
+].map((link) => ({ ...link, href: localizePath(link.route, locale), isCurrent: path === link.route }));
+const localeLinks = localeSwitchLinks(Astro.url.pathname).map((link) => ({
+  ...link,
+  name: link.lang === 'en-US' ? t('prefs.english') : t('prefs.spanish'),
+}));
+const themeLabels = {
+  label: t('prefs.theme'),
+  lightLabel: t('prefs.light'),
+  darkLabel: t('prefs.dark'),
+  systemLabel: t('prefs.system'),
+};
+---
+
+<BaseLayout title={title} description={t('meta.privateDescription')} locale={locale} noindex>
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-control focus:bg-surface-raised focus:px-4 focus:py-2"
+  >
+    {t('a11y.skipToContent')}
+  </a>
+  <div class:list={['flex min-h-dvh flex-col lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]', fit && 'fit:h-dvh fit:min-h-0 fit:overflow-hidden']}>
+    <aside
+      transition:persist="app-sidebar"
+      class="sticky top-0 hidden h-dvh flex-col gap-8 border-r-[1.6px] border-ink bg-surface-raised px-5 py-6 lg:flex"
+    >
+      <a href={localizePath(ROUTES.app, locale)} class="flex min-h-11 items-center rounded-control px-2">
+        <Wordmark name={t('app.name')} />
+      </a>
+      <nav aria-label={t('a11y.accountNav')}>
+        <ul class="flex flex-col gap-1.5">
+          {
+            links.map((link) => (
+              <li>
+                <AppNavLink variant="side" href={link.href} route={link.route} label={link.label} icon={link.icon} isCurrent={link.isCurrent}>
+                  {link.hasCart && (
+                    <span class="ml-auto">
+                      <CartCount client:only="react" locale={locale} />
+                    </span>
+                  )}
+                </AppNavLink>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <div class="mt-auto flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-2">
+          <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+          <ThemeToggle {...themeLabels} compact />
+        </div>
+        <Session client:only="react" locale={locale}>
+          <div slot="fallback" class="size-11" aria-hidden="true"></div>
+        </Session>
+      </div>
+    </aside>
+
+    <div class:list={['flex min-w-0 flex-1 flex-col', fit && 'fit:min-h-0']}>
+      <header transition:persist="app-topbar" class="border-b-[1.6px] border-ink bg-surface-raised lg:hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
+          <a href={localizePath(ROUTES.app, locale)} class="flex min-h-11 min-w-0 items-center rounded-control">
+            <Wordmark name={t('app.name')} />
+          </a>
+          <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <LocaleSwitch label={t('prefs.language')} links={localeLinks} />
+            <ThemeToggle {...themeLabels} compact />
+          </div>
+        </div>
+      </header>
+      <main
+        id="main"
+        class:list={[
+          'mx-auto flex w-full max-w-6xl flex-1 flex-col gap-[clamp(0.75rem,2.4dvh,1.75rem)] px-4 pt-[clamp(1rem,3dvh,2.5rem)] pb-(--bottom-nav-space) sm:px-6 lg:px-[clamp(1.5rem,3vw,3.5rem)] lg:pb-[clamp(1rem,3.2dvh,2.5rem)] 2xl:max-w-400',
+          fit && 'fit:min-h-0 fit:overflow-y-auto',
+        ]}
+      >
+        <div class="flex flex-col gap-1">
+          <h1 class="font-display text-h1 font-bold tracking-tight lg:text-[clamp(2rem,4.6dvh,3.25rem)] lg:leading-tight">{heading}</h1>
+          {intro && <p class="max-w-prose text-body text-muted">{intro}</p>}
+        </div>
+        <slot />
+      </main>
+    </div>
+  </div>
+
+  <nav
+    transition:persist="app-tabbar"
+    aria-label={t('a11y.tabNav')}
+    class="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 rounded-control border-[1.6px] border-ink bg-surface-raised p-1.5 shadow-raised lg:hidden"
+  >
+    <ul class="grid grid-cols-5 gap-1">
+      {
+        links.map((link) => (
+          <li>
+            <AppNavLink variant="tab" href={link.href} route={link.route} label={link.label} icon={link.icon} isCurrent={link.isCurrent}>
+              {link.hasCart && (
+                <span class="absolute top-1 right-[calc(50%-1.5rem)]">
+                  <CartCount client:only="react" locale={locale} />
+                </span>
+              )}
+            </AppNavLink>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <!-- The wallet tour (after each sign-in, or Profile › tutorial): renders nothing until the home's
+       figures are on screen; persisted so it keeps its step while it opens the other pages. -->
+  <div transition:persist="app-tour">
+    <ProductTour client:idle locale={locale} />
+  </div>
+
+  <!-- Credi strolls by once in a while: on top of the phone tab bar, along the bottom edge from lg. -->
+  <div transition:persist="app-walker">
+    <WalkingMascot class="bottom-(--bottom-nav-space) lg:bottom-0" />
+  </div>
+</BaseLayout>
+
+<script>
+  import { localeSwitchLinks, splitLocalePath } from '../app/i18n/routing';
+  import { prefetchRouteData } from '../app/lib/prefetchRoutes';
+
+  const NAV_LINKS = '[data-nav-route]';
+
+  /** The shell persists across swaps, so the current destination is re-marked on every page. */
+  function markCurrent(): void {
+    const { path } = splitLocalePath(window.location.pathname);
+    for (const link of document.querySelectorAll<HTMLAnchorElement>(NAV_LINKS)) {
+      if (link.dataset.navRoute === path) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+  }
+
+  /** ES | EN must open THIS page in the other language, not the page the shell was built on. */
+  function pointLocaleLinks(): void {
+    const targets = new Map(localeSwitchLinks(window.location.pathname).map((link) => [link.lang, link]));
+    for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[data-locale-choice]')) {
+      const target = targets.get(anchor.dataset.localeChoice as 'es-MX' | 'en-US');
+      if (!target) continue;
+      anchor.href = target.href;
+      if (target.isCurrent) anchor.setAttribute('aria-current', 'true');
+      else anchor.removeAttribute('aria-current');
+    }
+  }
+
+  /** Intent on a destination warms its data (hover, keyboard focus, touch). */
+  function onIntent(event: Event): void {
+    const route = (event.target as Element | null)?.closest<HTMLElement>(NAV_LINKS)?.dataset.navRoute;
+    // prefetchRouteData never rejects (a failed warm-up only leaves the cache as it was).
+    if (route) prefetchRouteData(route);
+  }
+
+  const INTENT_EVENTS = ['pointerover', 'focusin', 'touchstart'] as const;
+
+  function setup(): void {
+    markCurrent();
+    pointLocaleLinks();
+    for (const name of INTENT_EVENTS) {
+      document.removeEventListener(name, onIntent);
+      document.addEventListener(name, onIntent, { passive: true });
+    }
+  }
+
+  function teardown(): void {
+    for (const name of INTENT_EVENTS) document.removeEventListener(name, onIntent);
+  }
+
+  // Bound on every page load and removed before each swap (WA4).
+  document.addEventListener('astro:page-load', setup);
+  document.addEventListener('astro:before-swap', teardown);
+</script>

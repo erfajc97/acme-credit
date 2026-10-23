@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.astro/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.turbo/
+playwright-report/
+test-results/
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# claude-kit local state
+.claude/kit-seal.json
+.claude/kit-audit-state.json
+
+# rtk / vitest json reports
+.vitest/
+
+# Prisma client generated at build time (apps/api: prisma generate)
+apps/api/src/generated/

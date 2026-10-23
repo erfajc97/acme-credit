@@ -1,0 +1,369 @@
+// Lending core data model. Money is BIGINT cents (P1, ADR-0002); instants are timestamptz.
+// What Prisma cannot express (CHECKs, partial unique index, the ledger balance trigger) lives
+// in the migrations and is documented with `///` on its model. Never `migrate dev` (AN8).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  // Extensionless imports: valid for CommonJS under NodeNext and loadable by @swc-node/register.
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  customer
+  admin
+}
+
+enum AccountStatus {
+  PENDING_COLLATERAL
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  /// Not paid by its expiry, as the provider confirmed; a late approval still settles it.
+  EXPIRED
+}
+
+enum PayoutStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum PayoutReason {
+  collateral_release
+  repayment_refund
+  deposit_refund
+}
+
+enum AuthorizationStatus {
+  APPROVED
+  DECLINED
+  CAPTURED
+  REVERSED
+}
+
+/// Why a hold ended without a capture (contract REVERSAL_REASONS).
+enum ReversalReason {
+  network
+  expired
+  admin_release
+}
+
+/// Who froze a card: a customer cannot lift an ADMIN freeze.
+enum FreezeActor {
+  CUSTOMER
+  ADMIN
+}
+
+/// Contract FREEZE_REASONS: the customer's own freeze, or the reason an admin picked.
+enum FreezeReason {
+  customer_request
+  admin_review
+  suspected_fraud
+  collections
+}
+
+enum DeclineReason {
+  insufficient_funds
+  account_not_active
+  card_frozen
+  invalid_card
+}
+
+enum JournalKind {
+  collateral_deposit
+  purchase_capture
+  repayment
+  collateral_applied
+  collateral_released
+}
+
+enum IdempotencyStatus {
+  PENDING
+  RETRYABLE
+  COMPLETED
+}
+
+enum ActorType {
+  customer
+  admin
+  network
+  provider
+  system
+}
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  fullName     String   @map("full_name") @db.VarChar(120)
+  role         UserRole
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  accounts      Account[]
+  refreshTokens RefreshToken[]
+
+  @@index([fullName])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Every rotation of one sign-in shares the family; reusing a revoked token revokes it all.
+  familyId  String    @map("family_id") @db.Uuid
+  /// SHA-256 of the opaque token: the token itself is never stored.
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// CHECKs (migration 20261021191651_lending_core): every balance >= 0, and
+/// held + posted_debt <= credit_limit while the account is not CLOSED (the last line of
+/// defence behind the row lock, ADR-0003).
+/// accounts_one_open_per_customer (partial unique): at most one non-CLOSED account per
+/// customer. Lives only in SQL; never drop it.
+/// accounts_frozen_by (migration 20261022191708_domain_hardening): frozen_by, freeze_reason and
+/// frozen_at are set exactly while the account is FROZEN.
+model Account {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  customerId       String        @map("customer_id") @db.Uuid
+  status           AccountStatus @default(PENDING_COLLATERAL)
+  collateralCents  BigInt        @default(0) @map("collateral_cents")
+  creditLimitCents BigInt        @default(0) @map("credit_limit_cents")
+  heldCents        BigInt        @default(0) @map("held_cents")
+  postedDebtCents  BigInt        @default(0) @map("posted_debt_cents")
+  cardLast4        String?       @map("card_last4") @db.Char(4)
+  cardToken        String?       @unique @map("card_token") @db.VarChar(64)
+  /// First day of the expiry month.
+  cardExpiresOn    DateTime?     @map("card_expires_on") @db.Date
+  openedAt         DateTime      @default(now()) @map("opened_at") @db.Timestamptz(3)
+  activatedAt      DateTime?     @map("activated_at") @db.Timestamptz(3)
+  closedAt         DateTime?     @map("closed_at") @db.Timestamptz(3)
+  frozenBy         FreezeActor?  @map("frozen_by")
+  freezeReason     FreezeReason? @map("freeze_reason")
+  frozenAt         DateTime?     @map("frozen_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer       User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  deposits       CollateralDeposit[]
+  repayments     Repayment[]
+  payouts        Payout[]
+  authorizations Authorization[]
+  journalEntries JournalEntry[]
+
+  @@index([customerId, openedAt])
+  @@index([status, openedAt(sort: Desc), id(sort: Desc)])
+  @@index([openedAt(sort: Desc), id(sort: Desc)])
+  @@map("accounts")
+}
+
+/// CHECKs: amount_cents > 0; 0 < limit_ratio_bps <= 10000. The ratio is stored at request
+/// time and read from here when the deposit is confirmed (MO5).
+model CollateralDeposit {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  accountId         String        @map("account_id") @db.Uuid
+  amountCents       BigInt        @map("amount_cents")
+  status            PaymentStatus @default(PENDING)
+  limitRatioBps     Int           @map("limit_ratio_bps")
+  providerPaymentId String?       @map("provider_payment_id") @db.VarChar(64)
+  approveUrl        String?       @map("approve_url") @db.VarChar(2048)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  confirmedAt       DateTime?     @map("confirmed_at") @db.Timestamptz(3)
+  /// Recorded at request time from PENDING_PAYMENT_TTL_MINUTES (MO5).
+  expiresAt         DateTime      @map("expires_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("collateral_deposits")
+}
+
+/// CHECKs: amount_cents > 0; 0 <= applied_cents <= amount_cents.
+model Repayment {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  accountId         String        @map("account_id") @db.Uuid
+  amountCents       BigInt        @map("amount_cents")
+  /// Part of the amount that reduced the debt once confirmed; the rest is refunded.
+  appliedCents      BigInt        @default(0) @map("applied_cents")
+  status            PaymentStatus @default(PENDING)
+  providerPaymentId String?       @map("provider_payment_id") @db.VarChar(64)
+  approveUrl        String?       @map("approve_url") @db.VarChar(2048)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  confirmedAt       DateTime?     @map("confirmed_at") @db.Timestamptz(3)
+  /// Recorded at request time from PENDING_PAYMENT_TTL_MINUTES (MO5).
+  expiresAt         DateTime      @map("expires_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("repayments")
+}
+
+/// CHECKs: amount_cents > 0; attempts >= 1.
+/// Sent by the worker and retried with backoff (MO4, MO5): `provider_reference` is the id the
+/// provider dedupes on, ONE per attempt. An unanswered attempt is asked again with the same
+/// reference; only an attempt the provider FAILED gets a new one, up to the attempt cap.
+model Payout {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  accountId         String       @map("account_id") @db.Uuid
+  amountCents       BigInt       @map("amount_cents")
+  reason            PayoutReason
+  status            PayoutStatus @default(PENDING)
+  providerPaymentId String?      @map("provider_payment_id") @db.VarChar(64)
+  providerReference String       @unique @default(uuid(7)) @map("provider_reference") @db.Uuid
+  attempts          Int          @default(1)
+  nextAttemptAt     DateTime     @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  lastError         String?      @map("last_error") @db.VarChar(64)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  sentAt            DateTime?    @map("sent_at") @db.Timestamptz(3)
+  failedAt          DateTime?    @map("failed_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, nextAttemptAt])
+  @@map("payouts")
+}
+
+/// CHECKs: amount_cents > 0; 0 <= captured_cents <= amount_cents; a decline reason exactly
+/// when the status is DECLINED; expires_at set exactly when the status is not DECLINED; a
+/// reversal reason exactly when the status is REVERSED.
+model Authorization {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  /// Null when the card token matched no account (declined as invalid_card).
+  accountId      String?             @map("account_id") @db.Uuid
+  amountCents    BigInt              @map("amount_cents")
+  capturedCents  BigInt              @default(0) @map("captured_cents")
+  status         AuthorizationStatus
+  declineReason  DeclineReason?      @map("decline_reason")
+  merchantName   String              @map("merchant_name") @db.VarChar(80)
+  merchantMcc    String              @map("merchant_mcc") @db.Char(4)
+  /// Order lines of an in-wallet store purchase (contract OrderLine[]); `[]` for a plain card
+  /// purchase. Their total equals amount_cents, checked by the service before the insert.
+  items          Json                @default("[]")
+  /// When an uncaptured hold is released by the worker: HOLD_TTL_HOURS at approval (MO5).
+  expiresAt      DateTime?           @map("expires_at") @db.Timestamptz(3)
+  reversalReason ReversalReason?     @map("reversal_reason")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, expiresAt])
+  @@map("authorizations")
+}
+
+/// Append-only. journal_entries_balanced (DEFERRABLE INITIALLY DEFERRED constraint trigger,
+/// migration 20261021191651_lending_core): at commit, every entry has at least two postings
+/// and they sum to zero. UPDATE and DELETE are rejected by a trigger.
+model JournalEntry {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  kind        JournalKind
+  accountId   String?     @map("account_id") @db.Uuid
+  description String      @db.VarChar(200)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  account  Account?  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  postings Posting[]
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("journal_entries")
+}
+
+/// Append-only; amount is signed (debit positive, credit negative) and never zero. The
+/// balance of each entry is enforced by the deferred trigger documented on JournalEntry.
+model Posting {
+  id            String @id @default(uuid(7)) @db.Uuid
+  entryId       String @map("entry_id") @db.Uuid
+  ledgerAccount String @map("ledger_account") @db.VarChar(80)
+  amountCents   BigInt @map("amount_cents")
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([ledgerAccount])
+  @@map("postings")
+}
+
+/// The response is written in the SAME transaction as the effect (ADR-0004).
+model IdempotencyKey {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  scope          String            @db.VarChar(64)
+  key            String            @db.Uuid
+  requestHash    String            @map("request_hash") @db.Char(64)
+  status         IdempotencyStatus @default(PENDING)
+  /// Row created by the first attempt (deposit, repayment): a retry resumes it, never duplicates it.
+  resourceId     String?           @map("resource_id") @db.Uuid
+  responseStatus Int?              @map("response_status")
+  responseBody   Json?             @map("response_body")
+  /// Lease of the attempt that owns a PENDING key; once it lapses a retry with the same payload
+  /// may take the key over. `attempt` names the owner: a stale attempt can no longer complete it.
+  lockedUntil    DateTime          @default(now()) @map("locked_until") @db.Timestamptz(3)
+  attempt        Int               @default(1)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([scope, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  actorType  ActorType @map("actor_type")
+  actorId    String?   @map("actor_id") @db.VarChar(64)
+  action     String    @db.VarChar(64)
+  entityType String    @map("entity_type") @db.VarChar(32)
+  entityId   String    @map("entity_id") @db.VarChar(64)
+  requestId  String?   @map("request_id") @db.VarChar(64)
+  data       Json
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([entityId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("audit_log")
+}
+
+/// Transactional outbox (P2): written with the change, claimed by the worker with
+/// FOR UPDATE SKIP LOCKED.
+model OutboxEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  type        String    @db.VarChar(64)
+  payload     Json
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+  lastError   String?   @map("last_error") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([processedAt, availableAt])
+  @@map("outbox_events")
+}

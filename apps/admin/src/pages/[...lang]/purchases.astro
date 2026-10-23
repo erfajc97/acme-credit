@@ -1,0 +1,23 @@
+---
+/**
+ * Purchases across the wallet (WA11): private, client-only behind the session gate. Its status
+ * filter and page live in the URL (W17); the island persists across Back to this same page, so
+ * the ClientRouter's swap of the first entry does not remount it.
+ */
+import { PageSkeleton } from '../../app/components/PageSkeleton';
+import Purchases from '../../app/features/purchases/Purchases';
+import { getT, type Locale } from '../../app/i18n';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.purchasesTitle')} heading={t('purchases.pageTitle')} intro={t('purchases.intro')} locale={locale}>
+  <Purchases client:only="react" locale={locale} transition:persist="purchases-list">
+    <PageSkeleton slot="fallback" label={t('purchases.loading')} />
+  </Purchases>
+</AdminLayout>

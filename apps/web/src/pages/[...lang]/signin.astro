@@ -1,0 +1,25 @@
+---
+/** Sign in (noindex: an auth page, WA6). The form is interactive at once: client:load. */
+import SignIn from '../../app/features/sign-in/SignIn';
+import AuthShell from '../../components/AuthShell.astro';
+import { getT, type Locale } from '../../app/i18n';
+import { localizePath } from '../../app/i18n/routing';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import { ROUTES } from '../../app/lib/endpoints';
+import PublicLayout from '../../layouts/PublicLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<PublicLayout title={t('meta.signInTitle')} description={t('meta.signInDescription')} locale={locale} noindex bare>
+  <AuthShell locale={locale} heading={t('auth.signIn.title')} intro={t('auth.signIn.intro')} pose="wave" tone="cream">
+    <SignIn client:load locale={locale} />
+    <p slot="footer" class="text-small text-fg">
+      {t('auth.signIn.noAccount')}{' '}
+      <a href={localizePath(ROUTES.signUp, locale)} class="inline-flex min-h-11 items-center font-semibold text-violet underline underline-offset-4">{t('auth.signIn.createAccount')}</a>
+    </p>
+  </AuthShell>
+</PublicLayout>

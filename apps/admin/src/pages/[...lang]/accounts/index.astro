@@ -1,0 +1,23 @@
+---
+/**
+ * The accounts list (WA11): private, client-only. Its filters live in the URL (W17); the island
+ * persists across Back to this same page, so the ClientRouter's swap of the first entry does not
+ * remount it.
+ */
+import { PageSkeleton } from '../../../app/components/PageSkeleton';
+import Accounts from '../../../app/features/accounts/Accounts';
+import { getT, type Locale } from '../../../app/i18n';
+import { localeStaticPaths } from '../../../app/i18n/staticPaths';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.accountsTitle')} heading={t('accounts.pageTitle')} intro={t('accounts.intro')} locale={locale}>
+  <Accounts client:only="react" locale={locale} transition:persist="accounts-list">
+    <PageSkeleton slot="fallback" label={t('accounts.loading')} />
+  </Accounts>
+</AdminLayout>

@@ -1,0 +1,184 @@
+---
+/** Public landing (WA1, WA6): static HTML, zero JS, one page source for es-MX (/) and en-US (/en/). */
+import { formatCents, MAX_DEPOSIT_CENTS, MIN_DEPOSIT_CENTS, STORE_CATALOG, STORE_MERCHANTS } from '@acme/contracts';
+import { AmountText, buttonLinkClass, PaymentCard } from '@acme/ui';
+import Mascot from '@acme/ui/Mascot.astro';
+import { Eye, ShieldCheck, Snowflake } from 'lucide-react';
+import { Icon } from '../../app/components/UI/Icon';
+import { CATEGORY_TILE } from '../../app/features/store/data';
+import { getT, type Locale } from '../../app/i18n';
+import { localizePath } from '../../app/i18n/routing';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import { ROUTES } from '../../app/lib/endpoints';
+import PublicLayout from '../../layouts/PublicLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+const money = (cents: bigint) => formatCents(cents, locale);
+
+const range = { min: money(MIN_DEPOSIT_CENTS), max: money(MAX_DEPOSIT_CENTS) };
+const steps = [
+  { title: t('landing.steps.depositTitle'), body: t('landing.steps.depositBody', range) },
+  { title: t('landing.steps.limitTitle'), body: t('landing.steps.limitBody') },
+  { title: t('landing.steps.spendTitle'), body: t('landing.steps.spendBody') },
+  { title: t('landing.steps.repayTitle'), body: t('landing.steps.repayBody') },
+  { title: t('landing.steps.returnTitle'), body: t('landing.steps.returnBody') },
+];
+
+// An illustrative account, in integer cents like the real one (P1): 500.00 deposit, 40.00 on
+// hold, 120.00 owed, so 340.00 is available.
+const example = [
+  { label: t('landing.exampleDeposit'), value: money(50_000n), secured: true },
+  { label: t('landing.exampleLimit'), value: money(50_000n), secured: false },
+  { label: t('landing.exampleHeld'), value: money(4_000n), secured: false },
+  { label: t('landing.exampleOwed'), value: money(12_000n), secured: false },
+];
+const exampleAvailable = money(34_000n);
+
+// Trust signals: facts the product keeps (docs/brand.md › Voice: honest about money, no hype).
+const trust = [
+  { icon: Eye, label: t('landing.trustAmounts') },
+  { icon: ShieldCheck, label: t('landing.trustDeposit') },
+  { icon: Snowflake, label: t('landing.trustFreeze') },
+];
+
+// The store teaser: each merchant with its category icon (from the shared catalog).
+const merchants = Object.entries(STORE_MERCHANTS).map(([id, merchant]) => ({
+  name: merchant.name,
+  category: STORE_CATALOG.find((product) => product.merchant === id)?.category ?? 'food',
+}));
+
+const site = Astro.site ?? Astro.url;
+const homeUrl = new URL(localizePath(ROUTES.home, locale), site).href;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FinancialProduct',
+  name: t('landing.eyebrow'),
+  description: t('meta.homeDescription'),
+  url: homeUrl,
+  inLanguage: locale,
+  provider: { '@type': 'Organization', name: t('app.name'), url: homeUrl },
+};
+---
+
+<PublicLayout title={t('meta.homeTitle')} description={t('meta.homeDescription')} locale={locale} jsonLd={jsonLd}>
+  <section class="border-b-[1.6px] border-ink bg-cream">
+    <div class="mx-auto grid min-h-[calc(100dvh-var(--public-header-height))] max-w-7xl content-center gap-6 px-4 py-6 md:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-12 lg:py-8 2xl:max-w-400">
+      <div class="flex flex-col items-start gap-4 lg:gap-5">
+        <p class="inline-flex items-center gap-2 rounded-control border-[1.6px] border-ink bg-lavender px-3 py-1 text-small font-semibold text-fg">
+          <span aria-hidden="true" class="size-2.5 bg-violet"></span>
+          {t('landing.eyebrow')}
+        </p>
+        <h1 class="font-display text-h1 font-bold tracking-tight lg:text-h1-lg">{t('landing.title')}</h1>
+        <p class="max-w-xl text-body text-muted">{t('landing.lead')}</p>
+        <div class="flex flex-wrap items-center gap-2">
+          <a href={localizePath(ROUTES.signUp, locale)} class={buttonLinkClass({ size: 'compact' })}>{t('landing.ctaPrimary')}</a>
+          <a href={localizePath(ROUTES.signIn, locale)} class={buttonLinkClass({ variant: 'secondary', size: 'compact' })}>{t('landing.ctaSecondary')}</a>
+        </div>
+        <ul aria-label={t('landing.trustLabel')} class="flex flex-col gap-1.5 text-small font-medium text-fg sm:flex-row sm:flex-wrap sm:gap-x-5">
+          {
+            trust.map((item) => (
+              <li class="flex items-center gap-2">
+                <span class="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.6px] border-ink bg-mint text-fg">
+                  <Icon icon={item.icon} size={16} />
+                </span>
+                {item.label}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div class="relative mx-auto flex w-full max-w-md flex-col items-center gap-5 lg:max-w-lg">
+        <div class="flex w-full items-end justify-center gap-1 lg:absolute lg:-top-6 lg:right-0 lg:z-10 lg:w-auto">
+          <Mascot pose="wave" size="md" motion="float" loading="eager" class="-mr-2 shrink-0 lg:size-36" />
+          <div class="w-60 -rotate-3 sm:w-72">
+            <PaymentCard
+              brandName={t('app.name')}
+              last4="4242"
+              numberLabel={t('account.card.numberLabel', { last4: '4242' })}
+              expiryLabel={t('account.card.expires')}
+              expiry="08/29"
+            />
+          </div>
+        </div>
+        <figure
+          aria-labelledby="example-caption"
+          class="flex w-full flex-col gap-3 rounded-card border-[1.6px] border-ink bg-surface-raised p-4 shadow-raised md:p-5 lg:mt-40"
+        >
+          <figcaption id="example-caption" class="flex flex-col gap-0.5">
+            <span class="font-display text-h3 font-bold">{t('landing.exampleTitle')}</span>
+            <span class="text-small text-muted">{t('landing.exampleBody')}</span>
+          </figcaption>
+          <dl class="flex flex-col">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-field bg-cream px-4 py-2.5">
+              <dt class="text-small font-semibold">{t('landing.exampleAvailable')}</dt>
+              <dd><AmountText value={exampleAvailable} size="hero" /></dd>
+            </div>
+            {
+              example.map((row) => (
+                <div class="flex items-center justify-between gap-4 border-b border-border px-1 py-2 last:border-b-0">
+                  <dt class:list={['flex items-center gap-2 text-small', row.secured ? 'font-semibold text-violet' : 'text-muted']}>
+                    {row.secured && <span aria-hidden="true" class="size-2.5 bg-violet" />}
+                    {row.label}
+                  </dt>
+                  <dd>
+                    <AmountText value={row.value} />
+                  </dd>
+                </div>
+              ))
+            }
+          </dl>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="steps-title" class="border-y-[1.6px] border-ink bg-lavender">
+    <div class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-14 md:px-6 md:py-20">
+      <h2 id="steps-title" class="font-display text-h2 font-bold tracking-tight lg:text-h2-lg">{t('landing.stepsTitle')}</h2>
+      <ol class="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        {
+          steps.map((step, index) => (
+            <li class="flex flex-col gap-3 rounded-card border-[1.6px] border-ink bg-surface-raised p-5 shadow-raised">
+              <span class="flex size-10 items-center justify-center rounded-full border-[1.6px] border-ink bg-brand-500 font-mono text-small font-medium text-on-brand">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <h3 class="font-display text-h3 font-bold">{step.title}</h3>
+              <p class="text-small text-muted">{step.body}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="store-title" class="bg-cream">
+    <div class="mx-auto grid max-w-7xl gap-8 px-4 py-14 md:px-6 md:py-20 lg:grid-cols-2 lg:items-center">
+      <div class="flex flex-col gap-4">
+        <h2 id="store-title" class="font-display text-h2 font-bold tracking-tight lg:text-h2-lg">{t('landing.storeTitle')}</h2>
+        <p class="max-w-prose text-body text-fg">{t('landing.storeBody')}</p>
+      </div>
+      <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {
+          merchants.map((merchant) => (
+            <li class="flex items-center gap-3 rounded-card border-[1.6px] border-ink bg-surface-raised p-4 shadow-raised">
+              <span class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.6px] border-ink bg-brand-500 text-on-brand">
+                <Icon icon={CATEGORY_TILE[merchant.category].icon} size={20} />
+              </span>
+              <span class="font-display font-bold">{merchant.name}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="closing-title" class="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 px-4 py-14 md:px-6 md:py-20">
+    <h2 id="closing-title" class="font-display text-h2 font-bold tracking-tight lg:text-h2-lg">{t('landing.closingTitle')}</h2>
+    <p class="max-w-prose text-body text-muted">{t('landing.closingBody')}</p>
+    <a href={localizePath(ROUTES.signUp, locale)} class={buttonLinkClass()}>{t('landing.ctaPrimary')}</a>
+  </section>
+</PublicLayout>

@@ -1,0 +1,47 @@
+packages:
+  - apps/*
+  - packages/*
+  - e2e
+
+# Supply chain (G19). An install fails on any dependency build script not listed below.
+strictDepBuilds: true
+# Versions younger than one day stay out: most malicious releases are pulled in that window.
+minimumReleaseAge: 1440
+
+# Install scripts allowed to run, each read before approval.
+allowBuilds:
+  # Downloads the native SWC binary for this platform (used by unplugin-swc in Nest tests).
+  '@swc/core': true
+  # Downloads the native esbuild binary (Vite / Astro bundling).
+  esbuild: true
+  # Installs the prebuilt Argon2id binding (password hashing, A12).
+  argon2: true
+  # Prisma 7 CLI and its schema engine (migrate deploy / diff, client generation).
+  '@prisma/engines': true
+  prisma: true
+  # Usage telemetry pulled in by swagger-ui-dist (@nestjs/swagger): never runs.
+  '@scarf/scarf': false
+
+# Exceptions to minimumReleaseAge, each with its reason.
+minimumReleaseAgeExclude:
+  # turbo 2.11.10 and its platform binaries were pinned while still under a day old.
+  - '@turbo/darwin-64@2.11.10'
+  - '@turbo/darwin-arm64@2.11.10'
+  - '@turbo/linux-64@2.11.10'
+  - '@turbo/linux-arm64@2.11.10'
+  - '@turbo/windows-64@2.11.10'
+  - '@turbo/windows-arm64@2.11.10'
+  - turbo@2.11.10
+  # Astro 7.4.2 and its first-party packages were pinned the day they were published.
+  - '@astrojs/check@0.9.12'
+  - '@astrojs/language-server@2.17.3'
+  - '@astrojs/markdown-satteri@0.4.5'
+  - '@astrojs/prism@4.1.1'
+  - '@astrojs/react@7.1.1'
+  - '@astrojs/telemetry@3.4.1'
+  - astro@7.4.2
+
+# Security overrides (pnpm audit --prod in CI). Each one names the advisory it closes.
+overrides:
+  # GHSA-r3ph-w7gj-g6xm: js-yaml <= 5.4.0 merge-key CPU use; reached through @nestjs/swagger.
+  '@nestjs/swagger>js-yaml': ^5.4.3

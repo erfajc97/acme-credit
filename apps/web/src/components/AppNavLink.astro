@@ -1,0 +1,36 @@
+---
+/**
+ * One destination of the app shell. `route` is the unprefixed route: the shell's script marks the
+ * current one (aria-current) after every ClientRouter swap, because the shell itself persists.
+ * Active = the yellow pill with its ink outline; inactive = icon + muted label.
+ */
+import type { LucideIcon } from 'lucide-react';
+import { Icon } from '../app/components/UI/Icon';
+
+interface Props {
+  href: string;
+  route: string;
+  label: string;
+  icon: LucideIcon;
+  isCurrent: boolean;
+  /** "tab" = the phone tab bar (icon over label); "side" = the desktop sidebar row. */
+  variant: 'tab' | 'side';
+}
+
+const { href, route, label, icon, isCurrent, variant } = Astro.props;
+---
+
+<a
+  href={href}
+  data-nav-route={route}
+  aria-current={isCurrent ? 'page' : undefined}
+  class:list={[
+    'group relative flex items-center rounded-control border-[1.6px] border-transparent font-semibold text-muted transition-colors duration-fast ease-out hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet aria-[current=page]:border-ink aria-[current=page]:bg-brand-500 aria-[current=page]:text-on-brand',
+    variant === 'tab' && 'min-h-14 min-w-0 flex-col justify-center gap-0.5 px-0.5 text-caption',
+    variant === 'side' && 'min-h-12 gap-3 px-4 text-body hover:bg-neutral-soft aria-[current=page]:hover:bg-brand-600',
+  ]}
+>
+  <Icon icon={icon} size={variant === 'tab' ? 20 : 24} />
+  <span class="max-w-full min-w-0 truncate">{label}</span>
+  <slot />
+</a>

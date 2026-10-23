@@ -1,0 +1,37 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. No secret goes here: every secret is
+# generated into Secrets Manager by secrets.tf.
+
+project     = "acme-credit"
+environment = "prod"
+region      = "us-east-1"
+
+web_domain     = "app.acme.example"
+admin_domain   = "admin.acme.example"
+api_domain     = "api.acme.example"
+network_domain = "network.acme.example"
+
+# ACM: one regional cert for the ALB hostnames, one us-east-1 cert for CloudFront.
+alb_certificate_arn        = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+cloudfront_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/11111111-1111-1111-1111-111111111111"
+
+# Leave empty to manage DNS elsewhere (see the dns_targets output).
+route53_zone_id = ""
+
+# Office / VPN egress IPs allowed to open the admin site. Empty = no WAF.
+admin_allowed_cidrs = ["203.0.113.10/32"]
+
+# Git SHA pushed by CI (ECR tags are immutable).
+image_tag        = "0123abc"
+cpu_architecture = "X86_64"
+
+api_desired_count = 2
+api_max_count     = 6
+
+seed_admin_email = "ops@acme.example"
+
+db_instance_class        = "db.t4g.small"
+db_multi_az              = true
+db_backup_retention_days = 14
+db_deletion_protection   = true
+
+alarm_email = "oncall@acme.example"

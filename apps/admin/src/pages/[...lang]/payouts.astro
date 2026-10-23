@@ -1,0 +1,22 @@
+---
+/**
+ * Payouts across the wallet (WA11): private, client-only behind the session gate. Its status
+ * filter lives in the URL (W17); the island persists across Back to this same page.
+ */
+import { PageSkeleton } from '../../app/components/PageSkeleton';
+import Payouts from '../../app/features/payouts/Payouts';
+import { getT, type Locale } from '../../app/i18n';
+import { localeStaticPaths } from '../../app/i18n/staticPaths';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const getStaticPaths = localeStaticPaths;
+
+const { locale } = Astro.props as { locale: Locale };
+const t = getT(locale);
+---
+
+<AdminLayout title={t('meta.payoutsTitle')} heading={t('payouts.pageTitle')} intro={t('payouts.intro')} locale={locale}>
+  <Payouts client:only="react" locale={locale} transition:persist="payouts-list">
+    <PageSkeleton slot="fallback" label={t('payouts.loading')} />
+  </Payouts>
+</AdminLayout>

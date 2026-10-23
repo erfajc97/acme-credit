@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">
+<rect width="640" height="400" fill="#FFFDEB"/>
+<path d="M320 38C430 34 512 92 514 196C516 300 438 366 320 364C200 362 122 300 124 198C126 96 210 42 320 38Z" fill="#FCEFB8"/>
+<g fill="#010101" stroke="#010101" stroke-width="5" stroke-linejoin="round" transform="translate(10 10)"><path d="M250 262 H390 L376 344 Q374 356 362 356 H278 Q266 356 264 344 Z"/><rect x="236" y="240" width="168" height="30" rx="10"/><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" transform="translate(218 196) rotate(-48) scale(0.95)" stroke-width="5.3"/><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" transform="translate(420 186) rotate(50) scale(0.95)" stroke-width="5.3"/><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" transform="translate(300 128) rotate(-14) scale(1.05)" stroke-width="4.8"/><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" transform="translate(366 140) rotate(22) scale(0.9)" stroke-width="5.6"/></g>
+<g stroke="#010101" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="M320 252 Q269 236 218 196 M320 252 Q370 226 420 186 M320 252 Q310 168 300 128 M320 252 Q343 180 366 140" fill="none" stroke-width="14"/>
+<path d="M320 252 Q269 236 218 196 M320 252 Q370 226 420 186 M320 252 Q310 168 300 128 M320 252 Q343 180 366 140" fill="none" stroke="#3E9B3A" stroke-width="5"/>
+<g transform="translate(218 196) rotate(-48) scale(0.95)"><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" fill="#2E8B3E" stroke-width="5.3"/>
+<path d="M0 -4 V-118" fill="none" stroke="#1D5E2A" stroke-width="4.2"/>
+<path d="M-71 -40 L-30 -46 M-64 -84 L-26 -80 M-38 -114 L-16 -98 M71 -40 L30 -46 M64 -84 L26 -80 M38 -114 L16 -98" fill="none" stroke-width="5.3"/>
+<ellipse cx="-34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.7"/><ellipse cx="34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.7"/></g>
+<g transform="translate(420 186) rotate(50) scale(0.95)"><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" fill="#2E8B3E" stroke-width="5.3"/>
+<path d="M0 -4 V-118" fill="none" stroke="#1D5E2A" stroke-width="4.2"/>
+<path d="M-71 -40 L-30 -46 M-64 -84 L-26 -80 M-38 -114 L-16 -98 M71 -40 L30 -46 M64 -84 L26 -80 M38 -114 L16 -98" fill="none" stroke-width="5.3"/>
+<ellipse cx="-34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.7"/><ellipse cx="34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.7"/></g>
+<g transform="translate(300 128) rotate(-14) scale(1.05)"><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" fill="#2E8B3E" stroke-width="4.8"/>
+<path d="M0 -4 V-118" fill="none" stroke="#1D5E2A" stroke-width="3.8"/>
+<path d="M-71 -40 L-30 -46 M-64 -84 L-26 -80 M-38 -114 L-16 -98 M71 -40 L30 -46 M64 -84 L26 -80 M38 -114 L16 -98" fill="none" stroke-width="4.8"/>
+<ellipse cx="-34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.3"/><ellipse cx="34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.3"/></g>
+<g transform="translate(366 140) rotate(22) scale(0.9)"><path d="M0 0 C-22 10 -70 0 -72 -44 C-75 -88 -36 -124 0 -126 C36 -124 75 -88 72 -44 C70 0 22 10 0 0 Z" fill="#2E8B3E" stroke-width="5.6"/>
+<path d="M0 -4 V-118" fill="none" stroke="#1D5E2A" stroke-width="4.4"/>
+<path d="M-71 -40 L-30 -46 M-64 -84 L-26 -80 M-38 -114 L-16 -98 M71 -40 L30 -46 M64 -84 L26 -80 M38 -114 L16 -98" fill="none" stroke-width="5.6"/>
+<ellipse cx="-34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.9"/><ellipse cx="34" cy="-62" rx="6" ry="9" fill="#FFFDEB" stroke-width="3.9"/></g>
+<path d="M250 262 H390 L376 344 Q374 356 362 356 H278 Q266 356 264 344 Z" fill="#7940C8"/>
+<path d="M258 300 H382" fill="none" stroke="#FACE07" stroke-width="10" stroke-linecap="butt"/>
+<rect x="236" y="240" width="168" height="30" rx="10" fill="#9A6BDB"/></g>
+</svg>

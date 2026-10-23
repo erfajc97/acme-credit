@@ -1,0 +1,84 @@
+---
+/**
+ * HTML shell of every page: SEO metadata (WA6), fonts, theme before paint (W8) and the
+ * ClientRouter (WA4: client-side navigation keeps the QueryClient, the session in memory and the
+ * persisted app shell). Every string arrives translated from the page (W12).
+ */
+import BrandSplash from '@acme/ui/BrandSplash.astro';
+import FontPreload from '@acme/ui/FontPreload.astro';
+import SplashGate from '@acme/ui/SplashGate.astro';
+import ThemeScript from '@acme/ui/ThemeScript.astro';
+import { ClientRouter } from 'astro:transitions';
+import '../styles/global.css';
+import { getT, type Locale } from '../app/i18n';
+import { alternateLinks } from '../app/i18n/routing';
+
+type JsonLd = Record<string, unknown>;
+
+interface Props {
+  /** Translated, at most 60 characters. */
+  title: string;
+  /** Translated, 100 to 155 characters. */
+  description: string;
+  locale: Locale;
+  /** Private screens and auth pages stay out of search (WA6, WA11). */
+  noindex?: boolean;
+  jsonLd?: JsonLd;
+}
+
+const { title, description, locale, noindex = false, jsonLd } = Astro.props;
+const t = getT(locale);
+const site = Astro.site ?? Astro.url;
+const canonical = new URL(Astro.url.pathname, site).href;
+// Reciprocal hreflang + x-default on indexable pages; private pages are noindex anyway.
+const alternates = noindex ? [] : alternateLinks(Astro.url.pathname);
+// JSON-LD is data, not markup: "<" is escaped so a value can never close the script (W14).
+// The link preview (1200×630, rendered by packages/ui/scripts/render-brand-assets.mjs) per locale.
+const ogImage = new URL(locale === 'en-US' ? '/og-en.png' : '/og.png', site).href;
+const jsonLdText = jsonLd ? JSON.stringify(jsonLd).replace(/</g, '\\u003c') : null;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    {alternates.map((link) => <link rel="alternate" hreflang={link.hreflang} href={new URL(link.path, site).href} />)}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={t('app.name')} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={locale.replace('-', '_')} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={t('og.imageAlt')} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={t('og.imageAlt')} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    {
+      /* set:html renders an escaped build-time constant (no user data): W14 does not apply. */
+      jsonLdText && <script type="application/ld+json" is:inline set:html={jsonLdText} />
+    }
+    <FontPreload />
+    <ThemeScript />
+    <SplashGate />
+    <ClientRouter />
+  </head>
+  <body class="flex min-h-dvh flex-col bg-canvas font-body text-fg antialiased">
+    <BrandSplash name={t('app.name')} />
+    <slot />
+  </body>
+</html>

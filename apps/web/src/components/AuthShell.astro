@@ -1,0 +1,76 @@
+---
+/**
+ * The sign-in and sign-up layout: the form card first (phones see only it, compact), and from lg a
+ * side illustration — Credi next to the card — with the same trust signals as the landing (WA1:
+ * static, no island). The page passes its own heading, intro, form island and footer link.
+ */
+import { PaymentCard } from '@acme/ui';
+import Mascot from '@acme/ui/Mascot.astro';
+import { Eye, ShieldCheck, Snowflake } from 'lucide-react';
+import { Icon } from '../app/components/UI/Icon';
+import { getT, type Locale } from '../app/i18n';
+
+interface Props {
+  locale: Locale;
+  heading: string;
+  intro: string;
+  pose: 'wave' | 'celebrate';
+  /** The band behind the form: cream for sign in, lavender for sign up. */
+  tone: 'cream' | 'lavender';
+}
+
+const { locale, heading, intro, pose, tone } = Astro.props;
+const t = getT(locale);
+const trust = [
+  { icon: Eye, label: t('landing.trustAmounts') },
+  { icon: ShieldCheck, label: t('landing.trustDeposit') },
+  { icon: Snowflake, label: t('landing.trustFreeze') },
+];
+---
+
+<div class:list={['flex-1', tone === 'cream' ? 'bg-cream' : 'bg-lavender']}>
+  <div class="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-8 md:py-12 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-16">
+    <div class="flex w-full flex-col gap-5">
+      <div class="flex items-center gap-3">
+        <Mascot pose={pose} size="xs" loading="eager" class="shrink-0 self-start lg:hidden" />
+        <div class="flex flex-col gap-1">
+          <h1 class="font-display text-h1 font-bold tracking-tight md:text-h1-lg">{heading}</h1>
+          <p class="text-body text-fg">{intro}</p>
+        </div>
+      </div>
+      <div class="rounded-card border-[1.6px] border-ink bg-surface-raised p-5 shadow-raised md:p-6">
+        <slot />
+      </div>
+      <slot name="footer" />
+    </div>
+
+    <aside aria-labelledby="auth-aside-title" class="relative hidden flex-col gap-6 rounded-card border-[1.6px] border-ink bg-surface-raised p-8 shadow-raised lg:flex">
+      <h2 id="auth-aside-title" class="max-w-sm font-display text-h2 font-bold tracking-tight">{t('auth.asideTitle')}</h2>
+      <ul class="flex flex-col gap-3 text-body font-medium text-fg">
+        {
+          trust.map((item) => (
+            <li class="flex items-center gap-3">
+              <span class="flex size-8 shrink-0 items-center justify-center rounded-full border-[1.6px] border-ink bg-mint text-fg">
+                <Icon icon={item.icon} size={16} />
+              </span>
+              {item.label}
+            </li>
+          ))
+        }
+      </ul>
+      <div class="mt-2 flex items-end gap-2">
+        <Mascot pose={pose} size="lg" motion="float" loading="eager" class="shrink-0" />
+        <div class="w-64 rotate-3">
+          <PaymentCard
+            brandName={t('app.name')}
+            last4="4242"
+            numberLabel={t('account.card.numberLabel', { last4: '4242' })}
+            expiryLabel={t('account.card.expires')}
+            expiry="08/29"
+            size="compact"
+          />
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
